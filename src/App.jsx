@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useCamera } from './hooks/useCamera';
 import { useAudio } from './hooks/useAudio';
 import { LAYOUTS, DEFAULT_LAYOUT } from './constants/layouts';
@@ -16,6 +16,13 @@ import { Camera, SlidersHorizontal, ArrowLeft, Home, Printer, LayoutGrid } from 
 export default function App() {
   // Navigation Flow: 'landing' -> 'grid' (Pilih Format Grid) -> 'capture' (Kamera) -> 'editor' (Kustomisasi) -> 'printing' (Cetak)
   const [currentStep, setCurrentStep] = useState('landing');
+
+  // Pastikan setiap pergantian halaman selalu mulai dari posisi paling atas (khususnya tampilan mobile)
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }, [currentStep]);
 
   // Camera & Audio Hooks
   const camera = useCamera();
@@ -134,37 +141,41 @@ export default function App() {
     return camera.captureFrame(null);
   }, [camera, audio]);
 
-  // Jalankan sesi foto otomatis
+  // Jalankan sesi foto: Tiap klik tombol mengambil 1 foto untuk slot berikutnya yang masih kosong
+  // (Dengan hitung mundur jika timer aktif, atau jepret langsung jika timer Off).
+  // Kamera selalu menunggu user menekan tombol kembali sebelum memotret foto berikutnya.
   const handleStartSession = async () => {
     if (isSessionRunning) return;
     audio.unlockAudio();
-    resetEditorToDefault();
-    setIsSessionRunning(true);
     const targetCount = currentLayout.photoCount;
-    const newPhotos = new Array(targetCount).fill(null);
-    setPhotos(newPhotos);
 
-    for (let i = 0; i < targetCount; i++) {
-      setSessionProgress({ current: i + 1, total: targetCount, active: true });
+    let targetIndex = photos.findIndex(p => p === null);
+    let basePhotos = [...photos];
 
-      // Hitung mundur tiap jeda foto
-      if (timerSeconds > 0) {
-        await runCountdown(timerSeconds);
-      }
-
-      // Ambil foto
-      const captured = snapPhoto();
-      newPhotos[i] = captured;
-      setPhotos([...newPhotos]);
-
-      // Jeda 1.2 detik sebelum foto berikutnya
-      if (i < targetCount - 1) {
-        await new Promise((r) => setTimeout(r, 1200));
-      }
+    // Jika seluruh slot sebelumnya sudah penuh terisi, foto ulang dimulai dari slot pertama
+    if (targetIndex === -1) {
+      resetEditorToDefault();
+      basePhotos = new Array(targetCount).fill(null);
+      targetIndex = 0;
     }
 
-    setSessionProgress({ current: 0, total: 0, active: false });
-    setIsSessionRunning(false);
+    setIsSessionRunning(true);
+    setSessionProgress({ current: targetIndex + 1, total: targetCount, active: true });
+
+    // Jika timer aktif (3s / 5s / 10s), jalankan hitung mundur sebelum menjepret foto
+    if (timerSeconds > 0) {
+      await runCountdown(timerSeconds);
+    }
+
+    // Ambil foto dan masukkan ke slot yang dituju
+    const captured = snapPhoto();
+    basePhotos[targetIndex] = captured;
+    setPhotos(basePhotos);
+
+    setTimeout(() => {
+      setSessionProgress({ current: 0, total: 0, active: false });
+      setIsSessionRunning(false);
+    }, 350);
   };
 
   // Foto ulang satu slot tertentu
@@ -360,8 +371,6 @@ export default function App() {
           <CapturePage
             camera={camera}
             audio={audio}
-            selectedLayoutId={selectedLayoutId}
-            onSelectLayout={handleSelectLayout}
             timerSeconds={timerSeconds}
             setTimerSeconds={setTimerSeconds}
             currentLayout={currentLayout}

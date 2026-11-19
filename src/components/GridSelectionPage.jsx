@@ -10,75 +10,100 @@ export default function GridSelectionPage({
 }) {
   const currentLayout = LAYOUTS[selectedLayoutId] || LAYOUTS['strip-3'];
 
-  // Mini Visual Representation of each layout frame
+  // Mini Visual Representation of each layout frame with explicit pixel dimensions
   const renderLayoutVisual = (layout) => {
     const isSelected = selectedLayoutId === layout.id;
-    const boxColor = isSelected ? 'bg-stone-800' : 'bg-stone-200';
-    const frameBg = isSelected ? 'bg-stone-900 border-stone-800' : 'bg-white border-stone-200';
+    const cardBg = isSelected ? 'bg-stone-900 border-stone-800' : 'bg-white border-stone-200';
+    const slotBg = isSelected ? 'bg-stone-700' : 'bg-stone-200';
+    const barBg = isSelected ? 'bg-stone-700' : 'bg-stone-300';
 
     switch (layout.id) {
       case 'strip-3':
         return (
-          <div className={`w-14 h-28 rounded-lg border-2 p-1.5 flex flex-col justify-between shadow-2xs transition-colors ${frameBg}`}>
-            <div className={`w-full h-6 rounded-xs ${boxColor}`} />
-            <div className={`w-full h-6 rounded-xs ${boxColor}`} />
-            <div className={`w-full h-6 rounded-xs ${boxColor}`} />
-            <div className="w-8 h-1 bg-stone-300/60 mx-auto rounded-full mt-0.5" />
+          <div
+            className={`rounded-xl border-2 p-2 flex flex-col justify-between shadow-xs transition-all ${cardBg}`}
+            style={{ width: '56px', height: '112px' }}
+          >
+            <div className="flex flex-col gap-1.5 flex-1 justify-center">
+              <div className={`w-full rounded-sm transition-colors ${slotBg}`} style={{ height: '24px' }} />
+              <div className={`w-full rounded-sm transition-colors ${slotBg}`} style={{ height: '24px' }} />
+              <div className={`w-full rounded-sm transition-colors ${slotBg}`} style={{ height: '24px' }} />
+            </div>
+            <div className={`w-7 h-1 mx-auto rounded-full mt-1.5 ${barBg}`} />
           </div>
         );
       case 'strip-4':
         return (
-          <div className={`w-14 h-28 rounded-lg border-2 p-1.5 flex flex-col justify-between shadow-2xs transition-colors ${frameBg}`}>
-            <div className={`w-full h-4.5 rounded-xs ${boxColor}`} />
-            <div className={`w-full h-4.5 rounded-xs ${boxColor}`} />
-            <div className={`w-full h-4.5 rounded-xs ${boxColor}`} />
-            <div className={`w-full h-4.5 rounded-xs ${boxColor}`} />
-            <div className="w-8 h-1 bg-stone-300/60 mx-auto rounded-full mt-0.5" />
-          </div>
-        );
-      case 'grid-2x2':
-        return (
-          <div className={`w-24 h-24 rounded-lg border-2 p-1.5 flex flex-col justify-between shadow-2xs transition-colors ${frameBg}`}>
-            <div className="grid grid-cols-2 gap-1 flex-1">
-              <div className={`rounded-xs ${boxColor}`} />
-              <div className={`rounded-xs ${boxColor}`} />
-              <div className={`rounded-xs ${boxColor}`} />
-              <div className={`rounded-xs ${boxColor}`} />
+          <div
+            className={`rounded-xl border-2 p-1.5 flex flex-col justify-between shadow-xs transition-all ${cardBg}`}
+            style={{ width: '56px', height: '116px' }}
+          >
+            <div className="flex flex-col gap-1 flex-1 justify-center">
+              <div className={`w-full rounded-sm transition-colors ${slotBg}`} style={{ height: '19px' }} />
+              <div className={`w-full rounded-sm transition-colors ${slotBg}`} style={{ height: '19px' }} />
+              <div className={`w-full rounded-sm transition-colors ${slotBg}`} style={{ height: '19px' }} />
+              <div className={`w-full rounded-sm transition-colors ${slotBg}`} style={{ height: '19px' }} />
             </div>
-            <div className="w-10 h-1 bg-stone-300/60 mx-auto rounded-full mt-1" />
+            <div className={`w-7 h-1 mx-auto rounded-full mt-1 ${barBg}`} />
           </div>
         );
       case 'side-2':
         return (
-          <div className={`w-28 h-18 rounded-lg border-2 p-1.5 flex flex-col justify-between shadow-2xs transition-colors ${frameBg}`}>
-            <div className="grid grid-cols-2 gap-1 flex-1">
-              <div className={`rounded-xs ${boxColor}`} />
-              <div className={`rounded-xs ${boxColor}`} />
+          <div
+            className={`rounded-xl border-2 p-2 flex flex-col justify-between shadow-xs transition-all ${cardBg}`}
+            style={{ width: '110px', height: '72px' }}
+          >
+            <div className="flex gap-1.5 flex-1 items-center justify-center">
+              <div className={`flex-1 rounded-sm transition-colors ${slotBg}`} style={{ height: '44px' }} />
+              <div className={`flex-1 rounded-sm transition-colors ${slotBg}`} style={{ height: '44px' }} />
             </div>
-            <div className="w-12 h-1 bg-stone-300/60 mx-auto rounded-full mt-1" />
+            <div className={`w-12 h-1 mx-auto rounded-full mt-1.5 ${barBg}`} />
           </div>
         );
       case 'side-3':
         return (
-          <div className={`w-32 h-18 rounded-lg border-2 p-1.5 flex flex-col justify-between shadow-2xs transition-colors ${frameBg}`}>
-            <div className="grid grid-cols-3 gap-1 flex-1">
-              <div className={`rounded-xs ${boxColor}`} />
-              <div className={`rounded-xs ${boxColor}`} />
-              <div className={`rounded-xs ${boxColor}`} />
+          <div
+            className={`rounded-xl border-2 p-2 flex flex-col justify-between shadow-xs transition-all ${cardBg}`}
+            style={{ width: '136px', height: '68px' }}
+          >
+            <div className="flex gap-1.5 flex-1 items-center justify-center">
+              <div className={`flex-1 rounded-sm transition-colors ${slotBg}`} style={{ height: '38px' }} />
+              <div className={`flex-1 rounded-sm transition-colors ${slotBg}`} style={{ height: '38px' }} />
+              <div className={`flex-1 rounded-sm transition-colors ${slotBg}`} style={{ height: '38px' }} />
             </div>
-            <div className="w-12 h-1 bg-stone-300/60 mx-auto rounded-full mt-1" />
+            <div className={`w-14 h-1 mx-auto rounded-full mt-1.5 ${barBg}`} />
+          </div>
+        );
+      case 'grid-2x2':
+        return (
+          <div
+            className={`rounded-xl border-2 p-2 flex flex-col justify-between shadow-xs transition-all ${cardBg}`}
+            style={{ width: '92px', height: '94px' }}
+          >
+            <div className="grid grid-cols-2 gap-1.5 flex-1">
+              <div className={`rounded-sm transition-colors ${slotBg}`} style={{ height: '32px' }} />
+              <div className={`rounded-sm transition-colors ${slotBg}`} style={{ height: '32px' }} />
+              <div className={`rounded-sm transition-colors ${slotBg}`} style={{ height: '32px' }} />
+              <div className={`rounded-sm transition-colors ${slotBg}`} style={{ height: '32px' }} />
+            </div>
+            <div className={`w-10 h-1 mx-auto rounded-full mt-1.5 ${barBg}`} />
           </div>
         );
       case 'single':
         return (
-          <div className={`w-20 h-24 rounded-lg border-2 p-1.5 flex flex-col justify-between shadow-2xs transition-colors ${frameBg}`}>
-            <div className={`w-full h-15 rounded-xs ${boxColor}`} />
-            <div className="w-10 h-1 bg-stone-300/60 mx-auto rounded-full mt-1" />
+          <div
+            className={`rounded-xl border-2 p-2 flex flex-col justify-between shadow-xs transition-all ${cardBg}`}
+            style={{ width: '84px', height: '98px' }}
+          >
+            <div className="flex-1 flex items-center justify-center">
+              <div className={`w-full rounded-sm transition-colors ${slotBg}`} style={{ height: '62px' }} />
+            </div>
+            <div className={`w-10 h-1 mx-auto rounded-full mt-1.5 ${barBg}`} />
           </div>
         );
       default:
         return (
-          <div className={`w-16 h-20 rounded-lg border-2 p-1.5 flex items-center justify-center ${frameBg}`}>
+          <div className={`w-16 h-20 rounded-lg border-2 p-1.5 flex items-center justify-center ${cardBg}`}>
             <LayoutGrid className="w-6 h-6 text-stone-400" />
           </div>
         );

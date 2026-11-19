@@ -1,7 +1,6 @@
 import React from 'react';
 import CameraView from './CameraView';
 import CameraControls from './CameraControls';
-import LayoutSelector from './LayoutSelector';
 import PhotoSlots from './PhotoSlots';
 import { ArrowRight, ArrowLeft, CheckCircle2, Zap, Sparkles } from 'lucide-react';
 
@@ -10,8 +9,6 @@ export default function CapturePage({
   camera,
   audio,
   // Configurations
-  selectedLayoutId,
-  onSelectLayout,
   timerSeconds,
   setTimerSeconds,
   // Session & Photos
@@ -91,6 +88,7 @@ export default function CapturePage({
               onToggleMute={audio.toggleMute}
               onStartSession={onStartSession}
               isSessionRunning={isSessionRunning}
+              photos={photos}
               photoCount={currentLayout.photoCount}
               allSlotsFilled={allSlotsFilled}
             />
@@ -129,19 +127,10 @@ export default function CapturePage({
           </div>
         </div>
 
-        {/* Kolom Kanan: Pilihan Tata Letak & Hasil Slot Foto */}
+        {/* Kolom Kanan: Hasil Slot Foto & Aksi Lanjut */}
         <div className="lg:col-span-5 space-y-4">
           
-          {/* 1. Pilih Tata Letak (Grid) */}
-          <div className="bg-white border border-[#E7E2DA] rounded-2xl p-4 shadow-sm">
-            <LayoutSelector
-              selectedLayoutId={selectedLayoutId}
-              onSelectLayout={onSelectLayout}
-              isSessionRunning={isSessionRunning}
-            />
-          </div>
-
-          {/* 2. Slot Foto & Tombol Retake per Slot */}
+          {/* Slot Foto & Tombol Retake per Slot */}
           <div className="bg-white border border-[#E7E2DA] rounded-2xl p-4 shadow-sm space-y-3">
             <PhotoSlots
               photos={photos}

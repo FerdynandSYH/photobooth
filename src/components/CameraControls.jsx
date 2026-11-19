@@ -12,6 +12,7 @@ export default function CameraControls({
   onToggleMute,
   onStartSession,
   isSessionRunning,
+  photos,
   photoCount,
   allSlotsFilled,
 }) {
@@ -21,6 +22,10 @@ export default function CameraControls({
     { value: 5, label: '5s' },
     { value: 10, label: '10s' },
   ];
+
+  const filledCount = photos ? photos.filter(Boolean).length : 0;
+  const remainingCount = Math.max(0, photoCount - filledCount);
+  const nextSlotNumber = Math.min(filledCount + 1, photoCount);
 
   return (
     <div className="w-full bg-white border border-[#E7E2DA] rounded-2xl p-4 shadow-sm space-y-4">
@@ -104,18 +109,35 @@ export default function CameraControls({
           {isSessionRunning ? (
             <span className="flex items-center gap-2">
               <span className="w-4 h-4 border-2 border-stone-400 border-t-stone-800 rounded-full animate-spin"></span>
-              <span>Sesi Foto Sedang Berjalan...</span>
+              <span>
+                {timerSeconds === 0
+                  ? `Menjepret Slot #${nextSlotNumber}...`
+                  : `Hitung Mundur Slot #${nextSlotNumber}...`}
+              </span>
             </span>
           ) : (
             <>
               <Camera className="w-5 h-5 text-stone-200" />
-              <span>{allSlotsFilled ? 'Foto Ulang Seluruh Sesi' : 'Mulai Ambil Foto'}</span>
+              <span>
+                {allSlotsFilled
+                  ? 'Foto Ulang Seluruh Sesi'
+                  : `Ambil Foto (Slot #${nextSlotNumber} dari ${photoCount})`}
+              </span>
               <span className="bg-stone-800 text-stone-200 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-stone-700">
-                {photoCount} Foto
+                {timerSeconds > 0
+                  ? `${timerSeconds}s • Slot ${filledCount}/${photoCount}`
+                  : `Slot ${filledCount}/${photoCount}`}
               </span>
             </>
           )}
         </button>
+
+        {/* Petunjuk Mode Timer / Manual */}
+        <p className="mt-2 text-center text-[11px] text-stone-500 font-sans">
+          {timerSeconds === 0
+            ? 'Mode Tanpa Timer: Menjepret 1 foto langsung tiap kali tombol ditekan.'
+            : `Mode Timer ${timerSeconds}s: Hitung mundur dimulai tiap kali tombol ditekan. Setelah 1 foto selesai, kamera menunggu Anda siap sebelum foto berikutnya.`}
+        </p>
       </div>
 
     </div>

@@ -22,25 +22,25 @@ export default function LayoutSelector({
       case 'strip-4':
         return (
           <div className="flex flex-col gap-0.5 w-3.5 h-4 justify-between">
-            <div className="h-0.5 bg-current rounded-xs"></div>
-            <div className="h-0.5 bg-current rounded-xs"></div>
-            <div className="h-0.5 bg-current rounded-xs"></div>
-            <div className="h-0.5 bg-current rounded-xs"></div>
+            <div className="bg-current rounded-xs" style={{ height: '2.5px' }}></div>
+            <div className="bg-current rounded-xs" style={{ height: '2.5px' }}></div>
+            <div className="bg-current rounded-xs" style={{ height: '2.5px' }}></div>
+            <div className="bg-current rounded-xs" style={{ height: '2.5px' }}></div>
           </div>
         );
       case 'side-2':
         return (
-          <div className="flex flex-row gap-0.5 w-4 h-3.5 justify-between">
-            <div className="w-1.5 h-full bg-current rounded-xs"></div>
-            <div className="w-1.5 h-full bg-current rounded-xs"></div>
+          <div className="flex flex-row gap-1 w-4 h-3.5 justify-between">
+            <div className="h-full bg-current rounded-xs" style={{ width: '6.5px' }}></div>
+            <div className="h-full bg-current rounded-xs" style={{ width: '6.5px' }}></div>
           </div>
         );
       case 'side-3':
         return (
           <div className="flex flex-row gap-0.5 w-4 h-3.5 justify-between">
-            <div className="w-1 h-full bg-current rounded-xs"></div>
-            <div className="w-1 h-full bg-current rounded-xs"></div>
-            <div className="w-1 h-full bg-current rounded-xs"></div>
+            <div className="h-full bg-current rounded-xs" style={{ width: '4.5px' }}></div>
+            <div className="h-full bg-current rounded-xs" style={{ width: '4.5px' }}></div>
+            <div className="h-full bg-current rounded-xs" style={{ width: '4.5px' }}></div>
           </div>
         );
       case 'grid-2x2':
