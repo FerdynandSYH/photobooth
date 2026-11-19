@@ -159,13 +159,12 @@ export function useCamera() {
     };
   }, [isMirror]);
 
-  // Start camera on mount
+  // Cleanup camera stream on unmount
   useEffect(() => {
-    startCamera();
     return () => {
       stopStream();
     };
-  }, [startCamera, stopStream]);
+  }, [stopStream]);
 
   return {
     videoRef,
@@ -177,6 +176,7 @@ export function useCamera() {
     errorMessage,
     hasMultipleCameras,
     startCamera,
+    stopStream,
     toggleFacingMode,
     toggleMirror,
     captureFrame,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Download, RotateCcw, ArrowLeft, Printer, Sparkles, CheckCircle2, Copy, Check, Ticket, Share2 } from 'lucide-react';
+import { saveOrSharePhoto, isMobileDevice } from '../utils/downloadHelper';
 
 export default function PrintingPage({
   imageUrl,
@@ -10,7 +11,12 @@ export default function PrintingPage({
   const [printProgress, setPrintProgress] = useState(0);
   const [isPrinted, setIsPrinted] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const isMobile = isMobileDevice();
   const hasTriggeredComplete = useRef(false);
+
+  // Smooth paper emergence trajectory from -85% down to 0%
+  const translateY = Math.min(0, -85 * (1 - (printProgress / 100)));
 
   // Run the realistic photobooth paper emergence animation
   useEffect(() => {
@@ -19,15 +25,20 @@ export default function PrintingPage({
       audio.unlockAudio();
     }
 
-    const duration = 3000; // 3 seconds smooth photo strip emergence
+    const duration = 3200; // 3.2 seconds smooth photo strip emergence
     const startTime = performance.now();
+
+    // Natural ease-out cubic curve so emergence decelerates gently with zero sudden stops
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
     const animatePrint = (currentTime) => {
       const elapsed = currentTime - startTime;
-      const progress = Math.min(100, Math.round((elapsed / duration) * 100));
+      const rawT = Math.min(1, elapsed / duration);
+      const easedT = easeOutCubic(rawT);
+      const progress = Math.min(100, Math.round(easedT * 100));
       setPrintProgress(progress);
 
-      if (progress < 100) {
+      if (rawT < 1) {
         requestAnimationFrame(animatePrint);
       } else {
         setIsPrinted(true);
@@ -45,19 +56,38 @@ export default function PrintingPage({
     return () => cancelAnimationFrame(rafId);
   }, [audio]);
 
-  // Handle re-downloading image
-  const handleReDownload = () => {
-    if (!imageUrl) return;
+  // Handle saving to gallery (Native Web Share on Mobile) or direct download
+  const handleSaveOrShare = async () => {
+    if (!imageUrl || isSaving) return;
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
     const filename = `gophotobooth-${dateStr}.png`;
 
-    const link = document.createElement('a');
-    link.href = imageUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    setIsSaving(true);
+    try {
+      await saveOrSharePhoto({ dataUrl: imageUrl, filename });
+    } catch (e) {
+      console.warn('Gagal menyimpan foto:', e);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle direct file download (.PNG)
+  const handleForceDownload = async () => {
+    if (!imageUrl || isSaving) return;
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const filename = `gophotobooth-${dateStr}.png`;
+
+    setIsSaving(true);
+    try {
+      await saveOrSharePhoto({ dataUrl: imageUrl, filename, forceDownload: true });
+    } catch (e) {
+      console.warn('Gagal mengunduh file foto:', e);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Handle copying image to clipboard
@@ -151,22 +181,23 @@ export default function PrintingPage({
         </div>
 
         {/* The Emerging Photo Strip (Emerges downward from behind the dispenser slot) */}
-        <div className="relative w-full max-w-[400px] -mt-4 overflow-hidden pt-4 pb-8 flex justify-center z-10">
+        <div className="relative w-full max-w-[420px] -mt-4 overflow-hidden pt-4 pb-4 flex justify-center z-10">
           
-          {/* Animated Wrapper: slides down according to printProgress */}
+          {/* Animated Wrapper: slides down with smooth ease-out curve without conflicting CSS transition */}
           <div
-            className="transition-transform duration-75 ease-out flex justify-center"
+            className="flex justify-center w-full"
             style={{
-              transform: `translateY(${Math.max(-85, -85 + (printProgress * 0.85))}%)`,
-              opacity: printProgress > 8 ? 1 : 0.4,
+              transform: `translateY(${translateY}%)`,
+              opacity: printProgress > 4 ? 1 : 0.2,
+              willChange: 'transform',
             }}
           >
             {imageUrl ? (
-              <div className="relative group">
+              <div className="relative group flex justify-center">
                 <img
                   src={imageUrl}
                   alt="Hasil Cetak Photobooth"
-                  className="rounded-2xl max-h-[65vh] w-auto object-contain transition-all duration-500"
+                  className="rounded-2xl max-h-[62vh] sm:max-h-[68vh] w-auto object-contain transition-shadow duration-700"
                   style={{
                     boxShadow: isPrinted
                       ? '0 25px 60px -15px rgba(28, 25, 23, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.08)'
@@ -182,6 +213,16 @@ export default function PrintingPage({
             )}
           </div>
 
+        </div>
+
+        {/* Hint Khusus HP: Diletakkan terpisah di bawah foto agar tidak merusak flex layout */}
+        <div
+          className={`transition-all duration-700 ease-out mt-1 max-w-sm px-4 py-2 rounded-2xl bg-stone-100/90 border border-stone-200/90 text-[11px] text-stone-600 flex items-center justify-center gap-2 shadow-2xs text-center ${
+            isPrinted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-stone-700 flex-shrink-0" />
+          <span>Pengguna HP: Anda juga bisa tekan &amp; tahan foto di atas, lalu pilih <strong>Simpan Gambar</strong> ke galeri.</span>
         </div>
 
       </div>
@@ -230,31 +271,45 @@ export default function PrintingPage({
           </button>
         </div>
 
-        {/* 2. Secondary Utility Actions: Unduh Ulang, Salin Gambar, & Kembali ke Editor */}
-        <div className="grid grid-cols-2 gap-3 pt-1">
+        {/* 2. Secondary Utility Actions: Simpan ke Galeri / Unduh / Salin Gambar */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
           <button
-            onClick={handleReDownload}
+            onClick={handleSaveOrShare}
             type="button"
-            className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white hover:bg-stone-50 text-stone-800 text-xs sm:text-sm font-semibold border border-stone-300 shadow-2xs hover:border-stone-400 active:scale-95 transition cursor-pointer"
+            disabled={isSaving}
+            className="flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-semibold shadow-sm hover:shadow active:scale-95 transition cursor-pointer disabled:opacity-75"
           >
-            <Download className="w-4 h-4 text-stone-600" />
-            <span>Unduh Lagi (.PNG)</span>
+            <Share2 className={`w-4 h-4 text-stone-200 ${isSaving ? 'animate-spin' : ''}`} />
+            <span>{isSaving ? 'Memproses...' : (isMobile ? 'Simpan ke Galeri / Bagikan' : 'Simpan / Bagikan Foto')}</span>
           </button>
 
           <button
+            onClick={handleForceDownload}
+            type="button"
+            disabled={isSaving}
+            className="flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-white hover:bg-stone-50 text-stone-800 text-xs sm:text-sm font-semibold border border-stone-300 shadow-2xs hover:border-stone-400 active:scale-95 transition cursor-pointer disabled:opacity-75"
+          >
+            <Download className="w-4 h-4 text-stone-600" />
+            <span>Unduh File (.PNG)</span>
+          </button>
+        </div>
+
+        {/* Salin Gambar ke Clipboard */}
+        <div className="flex justify-center pt-1">
+          <button
             onClick={handleCopyImage}
             type="button"
-            className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white hover:bg-stone-50 text-stone-800 text-xs sm:text-sm font-semibold border border-stone-300 shadow-2xs hover:border-stone-400 active:scale-95 transition cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 text-xs text-stone-600 hover:text-stone-900 font-semibold transition cursor-pointer py-1.5 px-3 rounded-lg hover:bg-stone-200/50"
           >
             {isCopied ? (
               <>
-                <Check className="w-4 h-4 text-emerald-600" />
-                <span className="text-emerald-700 font-bold">Tersalin!</span>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-emerald-700 font-bold">Foto Berhasil Disalin!</span>
               </>
             ) : (
               <>
-                <Copy className="w-4 h-4 text-stone-600" />
-                <span>Salin Gambar</span>
+                <Copy className="w-3.5 h-3.5 text-stone-500" />
+                <span>Salin Gambar ke Clipboard</span>
               </>
             )}
           </button>

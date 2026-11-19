@@ -7,13 +7,14 @@ import { FRAMES, DEFAULT_FRAME } from './constants/frames';
 import { BACKGROUNDS, DEFAULT_BACKGROUND, BACKGROUND_RATIOS, DEFAULT_BG_RATIO } from './constants/backgrounds';
 
 import LandingPage from './components/LandingPage';
+import GridSelectionPage from './components/GridSelectionPage';
 import CapturePage from './components/CapturePage';
 import EditorPage from './components/EditorPage';
 import PrintingPage from './components/PrintingPage';
-import { Camera, SlidersHorizontal, ArrowLeft, Home, Printer } from 'lucide-react';
+import { Camera, SlidersHorizontal, ArrowLeft, Home, Printer, LayoutGrid } from 'lucide-react';
 
 export default function App() {
-  // Navigation Flow: 'landing' (Halaman Awal) -> 'capture' (Pemotretan) -> 'editor' (Kustomisasi & Unduh)
+  // Navigation Flow: 'landing' -> 'grid' (Pilih Format Grid) -> 'capture' (Kamera) -> 'editor' (Kustomisasi) -> 'printing' (Cetak)
   const [currentStep, setCurrentStep] = useState('landing');
 
   // Camera & Audio Hooks
@@ -78,18 +79,17 @@ export default function App() {
   const [isFlashing, setIsFlashing] = useState(false);
   const [sessionProgress, setSessionProgress] = useState({ current: 0, total: 0, active: false });
 
-  // Sinkronisasi slot saat layout diubah
+  // Sinkronisasi slot saat layout diubah (KOSONGKAN FOTO SEPENUHNYA SESUAI PERMINTAAN USER)
   const handleSelectLayout = (layoutId) => {
     if (isSessionRunning) return;
+    if (layoutId === selectedLayoutId) return;
     setSelectedLayoutId(layoutId);
-    const newCount = LAYOUTS[layoutId].photoCount;
-    setPhotos(prev => {
-      const next = new Array(newCount).fill(null);
-      for (let i = 0; i < Math.min(prev.length, newCount); i++) {
-        next[i] = prev[i];
-      }
-      return next;
-    });
+    const newCount = LAYOUTS[layoutId]?.photoCount || 3;
+    // Reset foto menjadi kosong sepenuhnya sehingga user harus mengambil foto baru
+    setPhotos(new Array(newCount).fill(null));
+    setCurrentRetakeIndex(null);
+    setSessionProgress({ current: 0, total: 0, active: false });
+    resetEditorToDefault();
   };
 
   const allSlotsFilled = useMemo(() => {
@@ -191,14 +191,12 @@ export default function App() {
     setIsSessionRunning(false);
   };
 
-  // Reset sesi foto kembali ke awal (kembali ke default: frame putih & tanpa background)
+  // Reset sesi foto kembali ke awal (kembali memilih grid)
   const handleResetSession = () => {
+    camera.stopStream();
     setPhotos(new Array(currentLayout.photoCount).fill(null));
     resetEditorToDefault();
-    if (camera.permissionStatus !== 'granted') {
-      camera.startCamera();
-    }
-    setCurrentStep('capture');
+    setCurrentStep('grid');
   };
 
   // Beralih ke halaman animasi cetak photobooth
@@ -208,15 +206,33 @@ export default function App() {
     setCurrentStep('printing');
   };
 
-  // Mulai dari landing page
+  // Navigasi dari landing page ke pemilihan grid (Kamera BELUM dinyalakan)
   const handleStartPhotoFromLanding = () => {
     audio.unlockAudio();
-    setPhotos(new Array(currentLayout.photoCount).fill(null));
+    setCurrentStep('grid');
+  };
+
+  // Konfirmasi format grid yang dipilih dan nyalakan kamera
+  const handleConfirmGrid = (layoutId) => {
+    audio.unlockAudio();
+    setSelectedLayoutId(layoutId);
+    const count = LAYOUTS[layoutId]?.photoCount || 3;
+    setPhotos(new Array(count).fill(null));
     resetEditorToDefault();
-    if (camera.permissionStatus !== 'granted') {
-      camera.startCamera();
-    }
+    camera.startCamera();
     setCurrentStep('capture');
+  };
+
+  // Kembali dari kamera ke pemilihan format grid
+  const handleBackToGrid = () => {
+    camera.stopStream();
+    setCurrentStep('grid');
+  };
+
+  // Kembali ke beranda
+  const handleBackToHome = () => {
+    camera.stopStream();
+    setCurrentStep('landing');
   };
 
   return (
@@ -228,7 +244,7 @@ export default function App() {
           
           {/* Logo & Brand Name */}
           <button
-            onClick={() => setCurrentStep('landing')}
+            onClick={handleBackToHome}
             className="flex items-center gap-2.5 text-left group cursor-pointer"
           >
             <img
@@ -250,7 +266,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             {currentStep !== 'landing' && (
               <button
-                onClick={() => setCurrentStep('landing')}
+                onClick={handleBackToHome}
                 className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 rounded-full transition cursor-pointer"
               >
                 <Home className="w-3.5 h-3.5" />
@@ -258,7 +274,24 @@ export default function App() {
               </button>
             )}
 
-            <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold px-3 sm:px-3.5 py-1.5 rounded-full bg-stone-100 border border-stone-200 text-stone-700">
+            <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-semibold px-2.5 sm:px-3.5 py-1.5 rounded-full bg-stone-100 border border-stone-200 text-stone-700">
+              {/* 1. Grid */}
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  currentStep === 'grid'
+                    ? 'bg-stone-900 animate-pulse'
+                    : currentStep === 'capture' || currentStep === 'editor' || currentStep === 'printing'
+                    ? 'bg-stone-400'
+                    : 'bg-stone-300'
+                }`}
+              />
+              <span className={currentStep === 'grid' ? 'text-stone-900 font-bold' : 'text-stone-500'}>
+                Grid
+              </span>
+
+              <span className="text-stone-400">/</span>
+
+              {/* 2. Kamera */}
               <span
                 className={`w-2 h-2 rounded-full ${
                   currentStep === 'capture'
@@ -271,7 +304,10 @@ export default function App() {
               <span className={currentStep === 'capture' ? 'text-stone-900 font-bold' : 'text-stone-500'}>
                 Kamera
               </span>
+
               <span className="text-stone-400">/</span>
+
+              {/* 3. Editor */}
               <span
                 className={`w-2 h-2 rounded-full ${
                   currentStep === 'editor'
@@ -284,7 +320,10 @@ export default function App() {
               <span className={currentStep === 'editor' ? 'text-stone-900 font-bold' : 'text-stone-500'}>
                 Editor
               </span>
+
               <span className="text-stone-400">/</span>
+
+              {/* 4. Cetak */}
               <span
                 className={`w-2 h-2 rounded-full ${
                   currentStep === 'printing' ? 'bg-stone-900 animate-pulse' : 'bg-stone-300'
@@ -306,7 +345,17 @@ export default function App() {
           <LandingPage onStartPhoto={handleStartPhotoFromLanding} />
         )}
 
-        {/* 2. Halaman Kamera: Tetap dimount saat di capture untuk menjaga stream video */}
+        {/* 2. Halaman Pilih Format Grid: User WAJIB memilih grid sebelum membuka kamera */}
+        {currentStep === 'grid' && (
+          <GridSelectionPage
+            selectedLayoutId={selectedLayoutId}
+            onSelectLayout={setSelectedLayoutId}
+            onConfirmGrid={handleConfirmGrid}
+            onBackToHome={handleBackToHome}
+          />
+        )}
+
+        {/* 3. Halaman Kamera: Tetap dimount saat di capture untuk menjaga stream video */}
         <div className={currentStep === 'capture' ? 'block animate-fade-in' : 'hidden'}>
           <CapturePage
             camera={camera}
@@ -326,7 +375,8 @@ export default function App() {
             onStartSession={handleStartSession}
             onRetakeSlot={handleRetakeSlot}
             onGoToEditor={() => setCurrentStep('editor')}
-            onBackToHome={() => setCurrentStep('landing')}
+            onBackToGrid={handleBackToGrid}
+            onBackToHome={handleBackToHome}
           />
         </div>
 

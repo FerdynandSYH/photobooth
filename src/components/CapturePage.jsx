@@ -26,24 +26,35 @@ export default function CapturePage({
   onStartSession,
   onRetakeSlot,
   onGoToEditor,
+  onBackToGrid,
   onBackToHome,
 }) {
   return (
     <div className="w-full max-w-5xl mx-auto space-y-4">
       
-      {/* Top Navigation Bar: Back to Home & Step Info */}
+      {/* Top Navigation Bar: Back to Grid / Home & Step Info */}
       <div className="flex items-center justify-between pb-1">
-        <button
-          onClick={onBackToHome}
-          disabled={isSessionRunning}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 border border-transparent hover:border-stone-300 transition cursor-pointer disabled:opacity-50"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Kembali ke Halaman Awal</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onBackToGrid}
+            disabled={isSessionRunning}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-stone-700 hover:text-stone-900 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 transition cursor-pointer disabled:opacity-50 shadow-2xs"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Ganti Format Grid</span>
+          </button>
+
+          <button
+            onClick={onBackToHome}
+            disabled={isSessionRunning}
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-stone-500 hover:text-stone-800 hover:bg-stone-100 transition cursor-pointer disabled:opacity-50"
+          >
+            <span>Beranda</span>
+          </button>
+        </div>
 
         <span className="text-xs font-serif italic text-stone-500">
-          Langkah 1: Pengambilan Foto
+          Langkah 2: Pengambilan Foto ({currentLayout.name})
         </span>
       </div>
 

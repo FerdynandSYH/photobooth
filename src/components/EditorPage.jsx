@@ -28,6 +28,7 @@ import { FRAMES, FRAME_CATEGORIES } from '../constants/frames';
 import { BACKGROUNDS, BACKGROUND_CATEGORIES, BACKGROUND_RATIOS } from '../constants/backgrounds';
 import { FILTERS, FILTER_CATEGORIES } from '../constants/filters';
 import { renderPhotoboothCanvas, getCanvasDimensions } from '../utils/canvasRenderer';
+import { saveOrSharePhoto, isMobileDevice } from '../utils/downloadHelper';
 
 // Helper acak urutan foto untuk strip kedua agar tampil natural & berbeda
 function generateShuffledPhotos(basePhotos) {
@@ -669,8 +670,10 @@ export default function EditorPage({
     updateCanvasBounds,
   ]);
 
-  const handleDownload = () => {
-    if (!canvasRef.current) return;
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleDownload = async () => {
+    if (!canvasRef.current || isSaving) return;
     const canvas = canvasRef.current;
 
     const now = new Date();
@@ -678,15 +681,17 @@ export default function EditorPage({
     const filename = `gophotobooth-${dateStr}.png`;
 
     const dataUrl = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.href = dataUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    setIsSaving(true);
 
-    if (onDownloadAndPrint) {
-      onDownloadAndPrint(dataUrl);
+    try {
+      await saveOrSharePhoto({ canvas, filename });
+    } catch (e) {
+      console.warn('Gagal menyimpan foto:', e);
+    } finally {
+      setIsSaving(false);
+      if (onDownloadAndPrint) {
+        onDownloadAndPrint(dataUrl);
+      }
     }
   };
 
@@ -1968,10 +1973,11 @@ export default function EditorPage({
           <div className="pt-3 space-y-2.5">
             <button
               onClick={handleDownload}
-              className="w-full bg-stone-900 hover:bg-stone-800 active:scale-[0.98] text-white font-bold py-4 px-6 rounded-2xl text-base shadow-md hover:shadow-lg transition flex items-center justify-center gap-2.5 cursor-pointer"
+              disabled={isSaving}
+              className="w-full bg-stone-900 hover:bg-stone-800 active:scale-[0.98] text-white font-bold py-4 px-6 rounded-2xl text-base shadow-md hover:shadow-lg transition flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-80"
             >
-              <Download className="w-5 h-5 text-stone-200" />
-              <span>Download Foto (.PNG)</span>
+              <Download className={`w-5 h-5 text-stone-200 ${isSaving ? 'animate-bounce' : ''}`} />
+              <span>{isSaving ? 'Menyimpan Foto...' : 'Download Foto (.PNG)'}</span>
             </button>
 
             <button
