@@ -27,8 +27,16 @@ export function useAudio() {
   const unlockAudio = useCallback(() => {
     try {
       const ctx = getAudioContext();
-      if (ctx && ctx.state === 'suspended') {
-        ctx.resume().catch(() => {});
+      if (ctx) {
+        if (ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
+        // Play an instantaneous silent buffer to truly unlock iOS Safari / mobile audio subsystem
+        const buffer = ctx.createBuffer(1, 1, 22050);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
       }
     } catch (e) {
       // Ignore
@@ -60,23 +68,32 @@ export function useAudio() {
     try {
       const ctx = getAudioContext();
       if (!ctx) return;
-      if (ctx.state === 'suspended') ctx.resume();
 
-      const now = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+      const trigger = () => {
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
 
-      osc.type = isFinal ? 'triangle' : 'sine';
-      osc.frequency.setValueAtTime(isFinal ? 920 : 540, now);
+        // Frekuensi yang nyaring & jelas terdengar di speaker HP / laptop:
+        // Normal beep: 880 Hz (A5), Final CHEESE cue: 1200 Hz
+        osc.type = isFinal ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(isFinal ? 1200 : 880, now);
 
-      gain.gain.setValueAtTime(isFinal ? 0.35 : 0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + (isFinal ? 0.35 : 0.16));
+        gain.gain.setValueAtTime(isFinal ? 0.45 : 0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + (isFinal ? 0.30 : 0.15));
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
 
-      osc.start(now);
-      osc.stop(now + (isFinal ? 0.35 : 0.16));
+        osc.start(now);
+        osc.stop(now + (isFinal ? 0.30 : 0.15));
+      };
+
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(trigger).catch(() => {});
+      } else {
+        trigger();
+      }
     } catch (e) {
       console.warn('Audio playback error:', e);
     }
@@ -88,65 +105,71 @@ export function useAudio() {
     try {
       const ctx = getAudioContext();
       if (!ctx) return;
-      if (ctx.state === 'suspended') ctx.resume();
 
-      const now = ctx.currentTime;
+      const trigger = () => {
+        const now = ctx.currentTime;
 
-      // 1. Shutter curtain mechanical snap (White noise burst)
-      const bufferSize = Math.floor(ctx.sampleRate * 0.09);
-      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const output = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.45));
+        // 1. Shutter curtain mechanical snap (White noise burst)
+        const bufferSize = Math.floor(ctx.sampleRate * 0.09);
+        const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.45));
+        }
+
+        const whiteNoise = ctx.createBufferSource();
+        whiteNoise.buffer = noiseBuffer;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.setValueAtTime(800, now);
+
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.48, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
+
+        whiteNoise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(ctx.destination);
+        whiteNoise.start(now);
+
+        // 2. Mirror slap punch (Low frequency thud)
+        const mirrorOsc = ctx.createOscillator();
+        const mirrorGain = ctx.createGain();
+        mirrorOsc.type = 'triangle';
+        mirrorOsc.frequency.setValueAtTime(140, now);
+        mirrorOsc.frequency.exponentialRampToValueAtTime(35, now + 0.10);
+
+        mirrorGain.gain.setValueAtTime(0.55, now);
+        mirrorGain.gain.exponentialRampToValueAtTime(0.001, now + 0.10);
+
+        mirrorOsc.connect(mirrorGain);
+        mirrorGain.connect(ctx.destination);
+        mirrorOsc.start(now);
+        mirrorOsc.stop(now + 0.10);
+
+        // 3. Second shutter curtain close click (60ms delay)
+        const secondClick = ctx.createOscillator();
+        const secondGain = ctx.createGain();
+        secondClick.type = 'sine';
+        secondClick.frequency.setValueAtTime(600, now + 0.06);
+        secondClick.frequency.exponentialRampToValueAtTime(150, now + 0.13);
+
+        secondGain.gain.setValueAtTime(0, now);
+        secondGain.gain.setValueAtTime(0.35, now + 0.06);
+        secondGain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+
+        secondClick.connect(secondGain);
+        secondGain.connect(ctx.destination);
+        secondClick.start(now + 0.06);
+        secondClick.stop(now + 0.13);
+      };
+
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(trigger).catch(() => {});
+      } else {
+        trigger();
       }
-
-      const whiteNoise = ctx.createBufferSource();
-      whiteNoise.buffer = noiseBuffer;
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'highpass';
-      filter.frequency.setValueAtTime(800, now);
-
-      const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.48, now);
-      noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
-
-      whiteNoise.connect(filter);
-      filter.connect(noiseGain);
-      noiseGain.connect(ctx.destination);
-      whiteNoise.start(now);
-
-      // 2. Mirror slap punch (Low frequency thud)
-      const mirrorOsc = ctx.createOscillator();
-      const mirrorGain = ctx.createGain();
-      mirrorOsc.type = 'triangle';
-      mirrorOsc.frequency.setValueAtTime(140, now);
-      mirrorOsc.frequency.exponentialRampToValueAtTime(35, now + 0.10);
-
-      mirrorGain.gain.setValueAtTime(0.55, now);
-      mirrorGain.gain.exponentialRampToValueAtTime(0.001, now + 0.10);
-
-      mirrorOsc.connect(mirrorGain);
-      mirrorGain.connect(ctx.destination);
-      mirrorOsc.start(now);
-      mirrorOsc.stop(now + 0.10);
-
-      // 3. Second shutter curtain close click (60ms delay)
-      const secondClick = ctx.createOscillator();
-      const secondGain = ctx.createGain();
-      secondClick.type = 'sine';
-      secondClick.frequency.setValueAtTime(600, now + 0.06);
-      secondClick.frequency.exponentialRampToValueAtTime(150, now + 0.13);
-
-      secondGain.gain.setValueAtTime(0, now);
-      secondGain.gain.setValueAtTime(0.35, now + 0.06);
-      secondGain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
-
-      secondClick.connect(secondGain);
-      secondGain.connect(ctx.destination);
-      secondClick.start(now + 0.06);
-      secondClick.stop(now + 0.13);
-
     } catch (e) {
       console.warn('Shutter sound failed:', e);
     }

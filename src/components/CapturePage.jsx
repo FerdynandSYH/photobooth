@@ -59,7 +59,7 @@ export default function CapturePage({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         
         {/* Kolom Kiri: Layar Kamera Kompak & Kontrol Kamera */}
-        <div className="lg:col-span-7 flex flex-col items-center space-y-3.5">
+        <div id="camera-view-container" className="lg:col-span-7 flex flex-col items-center space-y-3.5 scroll-mt-20">
           {/* Sized compact camera container so it doesn't take too much space */}
           <div className="w-full max-w-[450px]">
             <CameraView
@@ -91,6 +91,7 @@ export default function CapturePage({
               photos={photos}
               photoCount={currentLayout.photoCount}
               allSlotsFilled={allSlotsFilled}
+              currentRetakeIndex={currentRetakeIndex}
             />
           </div>
 

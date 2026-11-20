@@ -15,6 +15,7 @@ export default function CameraControls({
   photos,
   photoCount,
   allSlotsFilled,
+  currentRetakeIndex = null,
 }) {
   const timerOptions = [
     { value: 0, label: 'Off' },
@@ -25,7 +26,8 @@ export default function CameraControls({
 
   const filledCount = photos ? photos.filter(Boolean).length : 0;
   const remainingCount = Math.max(0, photoCount - filledCount);
-  const nextSlotNumber = Math.min(filledCount + 1, photoCount);
+  const nextSlotNumber = currentRetakeIndex !== null ? currentRetakeIndex + 1 : Math.min(filledCount + 1, photoCount);
+  const isRetakingSingle = currentRetakeIndex !== null;
 
   return (
     <div className="w-full bg-white border border-[#E7E2DA] rounded-2xl p-4 shadow-sm space-y-4">
@@ -103,6 +105,8 @@ export default function CameraControls({
           className={`w-full py-3.5 px-6 rounded-xl font-bold text-white shadow-md flex items-center justify-center gap-2.5 transition active:scale-[0.98] cursor-pointer ${
             isSessionRunning
               ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
+              : isRetakingSingle
+              ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20 ring-2 ring-amber-400/50'
               : 'bg-stone-900 hover:bg-stone-800 shadow-stone-900/10'
           }`}
         >
@@ -119,12 +123,16 @@ export default function CameraControls({
             <>
               <Camera className="w-5 h-5 text-stone-200" />
               <span>
-                {allSlotsFilled
+                {isRetakingSingle
+                  ? `Ambil Ulang Foto (Slot #${nextSlotNumber})`
+                  : allSlotsFilled
                   ? 'Foto Ulang Seluruh Sesi'
                   : `Ambil Foto (Slot #${nextSlotNumber} dari ${photoCount})`}
               </span>
               <span className="bg-stone-800 text-stone-200 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-stone-700">
-                {timerSeconds > 0
+                {isRetakingSingle
+                  ? `Ulang #${nextSlotNumber}`
+                  : timerSeconds > 0
                   ? `${timerSeconds}s • Slot ${filledCount}/${photoCount}`
                   : `Slot ${filledCount}/${photoCount}`}
               </span>
@@ -132,9 +140,11 @@ export default function CameraControls({
           )}
         </button>
 
-        {/* Petunjuk Mode Timer / Manual */}
+        {/* Petunjuk Mode Timer / Manual / Retake */}
         <p className="mt-2 text-center text-[11px] text-stone-500 font-sans">
-          {timerSeconds === 0
+          {isRetakingSingle
+            ? `Slot #${nextSlotNumber} siap difoto ulang. Silakan bersiap pose dan klik tombol kamera di atas saat Anda sudah siap.`
+            : timerSeconds === 0
             ? 'Mode Tanpa Timer: Menjepret 1 foto langsung tiap kali tombol ditekan.'
             : `Mode Timer ${timerSeconds}s: Hitung mundur dimulai tiap kali tombol ditekan. Setelah 1 foto selesai, kamera menunggu Anda siap sebelum foto berikutnya.`}
         </p>

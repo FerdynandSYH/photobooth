@@ -149,7 +149,9 @@ export default function App() {
     audio.unlockAudio();
     const targetCount = currentLayout.photoCount;
 
-    let targetIndex = photos.findIndex(p => p === null);
+    // Prioritaskan slot yang dipilih user untuk difoto ulang (currentRetakeIndex),
+    // atau cari slot pertama yang masih kosong
+    let targetIndex = currentRetakeIndex !== null ? currentRetakeIndex : photos.findIndex(p => p === null);
     let basePhotos = [...photos];
 
     // Jika seluruh slot sebelumnya sudah penuh terisi, foto ulang dimulai dari slot pertama
@@ -171,6 +173,7 @@ export default function App() {
     const captured = snapPhoto();
     basePhotos[targetIndex] = captured;
     setPhotos(basePhotos);
+    setCurrentRetakeIndex(null);
 
     setTimeout(() => {
       setSessionProgress({ current: 0, total: 0, active: false });
@@ -178,28 +181,54 @@ export default function App() {
     }, 350);
   };
 
-  // Foto ulang satu slot tertentu
-  const handleRetakeSlot = async (slotIndex) => {
+  // Tandai slot untuk difoto ulang dan gulir layar langsung ke atas ke arah kamera
+  // (Menunggu user menekan tombol kamera sendiri saat sudah siap)
+  const handleRetakeSlot = (slotIndex) => {
     if (isSessionRunning) return;
-    audio.unlockAudio();
-    setIsSessionRunning(true);
-    setCurrentRetakeIndex(slotIndex);
-    setSessionProgress({ current: slotIndex + 1, total: currentLayout.photoCount, active: true });
 
-    if (timerSeconds > 0) {
-      await runCountdown(timerSeconds);
+    // Batalkan mode foto ulang jika slotIndex null
+    if (slotIndex === null) {
+      setCurrentRetakeIndex(null);
+      return;
     }
 
-    const captured = snapPhoto();
-    setPhotos(prev => {
-      const copy = [...prev];
-      copy[slotIndex] = captured;
-      return copy;
-    });
+    // Hanya slot yang sudah memiliki foto yang dapat diulang
+    if (!photos[slotIndex]) return;
 
-    setCurrentRetakeIndex(null);
-    setSessionProgress({ current: 0, total: 0, active: false });
-    setIsSessionRunning(false);
+    audio.unlockAudio();
+
+    // Tandai slot yang ditargetkan untuk difoto ulang
+    setCurrentRetakeIndex(slotIndex);
+
+    // Gulir layar ke atas ke posisi kamera secara andal (lintas browser & iOS Safari / iPad)
+    const scrollToCamera = () => {
+      const cameraEl = document.getElementById('camera-view-container');
+      if (cameraEl) {
+        try {
+          cameraEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (e) {
+          cameraEl.scrollIntoView(true);
+        }
+      }
+      try {
+        window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      } catch (e) {
+        window.scrollTo(0, 0);
+      }
+      if (document.scrollingElement) {
+        document.scrollingElement.scrollTop = 0;
+      }
+      if (document.documentElement) {
+        document.documentElement.scrollTop = 0;
+      }
+      if (document.body) {
+        document.body.scrollTop = 0;
+      }
+    };
+
+    scrollToCamera();
+    setTimeout(scrollToCamera, 50);
+    setTimeout(scrollToCamera, 150);
   };
 
   // Reset sesi foto kembali ke awal (kembali memilih grid)
