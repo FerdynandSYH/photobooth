@@ -97,9 +97,9 @@ export default function EditorPage({
   // Tab Strip yang sedang aktif untuk di-drag / diubah posisinya ('strip1' atau 'strip2')
   const [activeStrip, setActiveStrip] = useState('strip1');
 
-  // Accordion dropdown states for editing panels
+  // Accordion dropdown states for editing panels (Semua tertutup secara default saat masuk ke editor)
   const [openSections, setOpenSections] = useState({
-    filter: true,
+    filter: false,
     layoutDuplicate: false,
     background: false,
     frame: false,
@@ -119,6 +119,9 @@ export default function EditorPage({
   // Garis frame & handle interaksi hanya muncul jika strip sedang terseleksi (isSelected === true).
   // Akan otomatis hilang jika user klik di luar area foto.
   const [isSelected, setIsSelected] = useState(false);
+
+  // State petunjuk interaktif seret foto agar teman-teman langsung tahu fotonya bisa digeser & diatur
+  const [showDragTip, setShowDragTip] = useState(true);
 
   // Hilangkan garis putus-putus dan handle ketika user klik/tap di luar area foto
   useEffect(() => {
@@ -729,6 +732,83 @@ export default function EditorPage({
           className="lg:col-span-6 flex flex-col items-center justify-center bg-white border border-[#E7E2DA] rounded-3xl p-3 sm:p-5 shadow-sm static lg:sticky lg:top-24"
         >
           
+          {/* 1. Jika canAdjust belum aktif: Tampilkan Banner Ajak Coba Fitur Geser yang Menarik & Lucu */}
+          {!canAdjust && (
+            <div className="w-full mb-3 p-3 sm:p-3.5 bg-gradient-to-r from-amber-50/90 via-[#FAF7F2] to-orange-50/70 border border-amber-200/80 rounded-2xl shadow-xs">
+              <div className="flex items-start gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-300/80 text-amber-900 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-2xs">
+                  <Sparkles className="w-4 h-4 text-amber-700" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-md border border-amber-200">
+                      Fitur Estetik
+                    </span>
+                    <span className="text-xs font-serif font-bold text-stone-900">
+                      Fotonya Bisa Digeser &amp; Diatur Lho!
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-stone-600 mt-1 leading-relaxed font-sans">
+                    Mau fotomu bertumpuk kasual ala photobooth vintage, digeser, diputar miring, atau dizoom sesukamu? Cukup aktifkan <strong>Duplikat 2 Strip</strong> atau pilih <strong>Motif Latar</strong>!
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleToggleDuplicate();
+                        setOpenSections(prev => ({ ...prev, layoutDuplicate: true }));
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold transition shadow-xs cursor-pointer active:scale-95"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Coba Duplikat 2 Strip</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenSections(prev => ({ ...prev, background: true }));
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 text-xs font-semibold transition shadow-xs cursor-pointer active:scale-95"
+                    >
+                      <Layers className="w-3.5 h-3.5 text-stone-600" />
+                      <span>Pilih Motif Latar</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 2. Jika canAdjust sudah aktif dan showDragTip aktif: Tampilkan Banner Info Seret Foto */}
+          {canAdjust && showDragTip && (
+            <div className="w-full mb-2.5 p-2.5 sm:p-3 bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 text-white rounded-2xl shadow-md border border-stone-700/60 animate-fade-in">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center flex-shrink-0">
+                    <Move className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold flex items-center gap-1.5 text-stone-100">
+                      <span>Seret &amp; Putar Fotonya Langsung!</span>
+                      <Sparkles className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                    </p>
+                    <p className="text-[11px] text-stone-300 truncate sm:whitespace-normal font-sans">
+                      Sentuh foto di kanvas untuk menggeser, memutar miring, atau mengubah ukurannya.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDragTip(false)}
+                  className="p-1.5 rounded-lg hover:bg-stone-700 text-stone-400 hover:text-white transition flex-shrink-0 cursor-pointer"
+                  title="Tutup petunjuk"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Quick Floating Toolbar di Atas Kanvas (Hanya aktif jika foto boleh disesuaikan: sudah duplikat ATAU sudah pilih background) */}
           {canAdjust && (
             <div ref={toolbarRef} className="w-full flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2 border-b border-stone-100 text-xs select-none">
@@ -985,6 +1065,7 @@ export default function EditorPage({
                   <div
                     onPointerDown={(e) => {
                       setIsSelected(true);
+                      setShowDragTip(false);
                       handleBodyPointerDown(e);
                     }}
                     className={`w-full h-full rounded-xl transition-all ${
@@ -996,6 +1077,21 @@ export default function EditorPage({
                     }`}
                     title={isSelected ? "Tahan dan geser untuk memindahkan posisi foto" : "Ketuk foto untuk mengaktifkan pengaturan"}
                   />
+
+                  {/* Sticker Lucu "Geser & Atur Aku!" (Hanya muncul sebelum user menyentuh foto) */}
+                  {!isSelected && showDragTip && (
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-10 transition-all duration-300">
+                      <div className="flex flex-col items-center gap-1 bg-stone-900/90 backdrop-blur-md text-white px-3.5 py-1.5 rounded-2xl shadow-xl border border-white/20 animate-bounce">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
+                          <Move className="w-3.5 h-3.5 animate-pulse" />
+                          <span>Geser &amp; Atur Aku!</span>
+                        </div>
+                        <span className="text-[9px] text-stone-300 font-sans">
+                          Tarik, putar, atau cubit langsung
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Handles hanya muncul jika strip sedang terseleksi (isSelected === true). Hilang jika klik di luar foto. */}
                   {isSelected && (
@@ -1054,28 +1150,52 @@ export default function EditorPage({
             </div>
           </div>
 
-          {/* Panduan Gestur atau Status Pratinjau */}
+          {/* Panduan Gestur Interaktif yang Menarik & Lucu */}
           {canAdjust ? (
-            <div className="flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1 text-[11px] text-stone-600 mt-2.5 sm:mt-3.5 text-center font-medium bg-stone-50/90 px-3.5 py-2 rounded-xl border border-stone-200/80 shadow-2xs">
-              <span className="flex items-center gap-1 text-stone-800 font-semibold">
-                <Move className="w-3.5 h-3.5 text-stone-700" />
-                <span>1 Jari: Geser</span>
-              </span>
-              <span className="text-stone-300">•</span>
-              <span className="flex items-center gap-1 text-stone-800 font-semibold">
-                <ZoomIn className="w-3.5 h-3.5 text-stone-700" />
-                <span>Sudut / Cubit: Ukuran</span>
-              </span>
-              <span className="text-stone-300">•</span>
-              <span className="flex items-center gap-1 text-stone-800 font-semibold">
-                <RotateCw className="w-3.5 h-3.5 text-stone-700" />
-                <span>Knob / 2 Jari: Putar</span>
-              </span>
+            <div className="w-full mt-3 bg-gradient-to-r from-[#FFFDF9] via-[#FAF6F0] to-[#F5ECE1] border border-[#E7DFD3] rounded-2xl p-3 shadow-2xs">
+              <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-stone-200/60 text-xs">
+                <span className="font-bold text-stone-900 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Cara Atur Posisi Foto Sesukamu</span>
+                </span>
+                <span className="text-[10px] text-stone-500 font-serif italic">
+                  Sentuh langsung di kanvas
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="bg-white/85 p-2 rounded-xl border border-stone-200/60 shadow-2xs">
+                  <div className="flex items-center justify-center gap-1 font-bold text-stone-900 mb-0.5 text-xs">
+                    <Move className="w-3.5 h-3.5 text-stone-700" />
+                    <span>Geser</span>
+                  </div>
+                  <p className="text-[10px] text-stone-500">1 Jari / Drag foto ke mana aja</p>
+                </div>
+                <div className="bg-white/85 p-2 rounded-xl border border-stone-200/60 shadow-2xs">
+                  <div className="flex items-center justify-center gap-1 font-bold text-stone-900 mb-0.5 text-xs">
+                    <ZoomIn className="w-3.5 h-3.5 text-stone-700" />
+                    <span>Ukuran</span>
+                  </div>
+                  <p className="text-[10px] text-stone-500">Cubit / Tarik bulatan sudut</p>
+                </div>
+                <div className="bg-white/85 p-2 rounded-xl border border-stone-200/60 shadow-2xs">
+                  <div className="flex items-center justify-center gap-1 font-bold text-stone-900 mb-0.5 text-xs">
+                    <RotateCw className="w-3.5 h-3.5 text-stone-700" />
+                    <span>Putar</span>
+                  </div>
+                  <p className="text-[10px] text-stone-500">Putar 2 jari / Tarik tombol atas</p>
+                </div>
+              </div>
             </div>
           ) : (
-            <p className="text-xs text-stone-500 mt-3 sm:mt-4 text-center font-serif italic">
-              Pratinjau Cetak • Resolusi Tinggi Siap Disimpan
-            </p>
+            <div className="w-full mt-3 p-3 bg-gradient-to-r from-stone-50 via-stone-50/80 to-amber-50/50 rounded-2xl border border-stone-200/80 text-center">
+              <p className="text-xs text-stone-800 font-bold flex items-center justify-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <span>Ingin foto bisa digeser &amp; diatur sesukamu?</span>
+              </p>
+              <p className="text-[11px] text-stone-500 mt-0.5">
+                Buka menu <strong className="text-stone-800">Duplikat Strip</strong> atau <strong className="text-stone-800">Latar Belakang</strong> untuk membuka kanvas interaktif!
+              </p>
+            </div>
           )}
         </div>
 
@@ -1113,12 +1233,12 @@ export default function EditorPage({
               onClick={() => toggleSection('filter')}
               className="w-full flex items-center justify-between p-3.5 sm:p-4 hover:bg-stone-50/70 transition cursor-pointer select-none text-left"
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
                 <div className="w-8 h-8 rounded-xl bg-stone-100 flex items-center justify-center text-stone-800 flex-shrink-0 border border-stone-200">
                   <Wand2 className="w-4 h-4" />
                 </div>
-                <div>
-                  <h3 className="text-xs sm:text-[13px] font-bold text-stone-900 leading-tight">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs sm:text-[13px] font-bold text-stone-900 leading-tight truncate">
                     Filter Foto
                   </h3>
                   <p className="text-[10px] text-stone-500 font-medium truncate">
@@ -1207,12 +1327,12 @@ export default function EditorPage({
               onClick={() => toggleSection('layoutDuplicate')}
               className="w-full flex items-center justify-between p-3.5 sm:p-4 hover:bg-stone-50/70 transition cursor-pointer select-none text-left"
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
                 <div className="w-8 h-8 rounded-xl bg-stone-100 flex items-center justify-center text-stone-800 flex-shrink-0 border border-stone-200">
                   <Copy className="w-4 h-4" />
                 </div>
-                <div>
-                  <h3 className="text-xs sm:text-[13px] font-bold text-stone-900 leading-tight">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs sm:text-[13px] font-bold text-stone-900 leading-tight truncate">
                     Tata Letak &amp; Duplikat Strip (Maks 2)
                   </h3>
                   <p className="text-[10px] text-stone-500 font-medium truncate">
@@ -1224,7 +1344,7 @@ export default function EditorPage({
               </div>
 
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border truncate ${
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border truncate max-w-[120px] ${
                   isDuplicateEnabled
                     ? 'bg-stone-900 text-white border-stone-900'
                     : 'bg-stone-100 text-stone-700 border-stone-200'
@@ -1242,6 +1362,14 @@ export default function EditorPage({
             {openSections.layoutDuplicate && (
               <div className="px-3.5 pb-3.5 sm:px-4 sm:pb-4 pt-1 space-y-3.5 border-t border-stone-100 animate-fade-in">
                 
+                {/* Tips Pose Estetik & Geser Foto */}
+                <div className="p-2.5 bg-gradient-to-r from-amber-50/90 via-stone-50 to-orange-50/80 rounded-xl border border-amber-200/80 text-[11px] text-amber-950 flex items-start gap-2 shadow-2xs">
+                  <Sparkles className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
+                  <div className="leading-snug">
+                    <strong className="text-amber-900">Tips Seru:</strong> Anda dan teman-teman bisa langsung <strong>menyeret, memutar, dan mencubit fotonya di layar</strong> untuk membuat pose tumpukan kasual seperti menata polaroid asli!
+                  </div>
+                </div>
+
                 {/* Toggle Duplikat Switch Card */}
                 <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl border border-stone-200">
                   <div className="min-w-0 pr-3">
@@ -1542,12 +1670,12 @@ export default function EditorPage({
               onClick={() => toggleSection('background')}
               className="w-full flex items-center justify-between p-3.5 sm:p-4 hover:bg-stone-50/70 transition cursor-pointer select-none text-left"
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
                 <div className="w-8 h-8 rounded-xl bg-stone-100 flex items-center justify-center text-stone-800 flex-shrink-0 border border-stone-200">
                   <Layers className="w-4 h-4" />
                 </div>
-                <div>
-                  <h3 className="text-xs sm:text-[13px] font-bold text-stone-900 leading-tight">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs sm:text-[13px] font-bold text-stone-900 leading-tight truncate">
                     Latar Belakang &amp; Rasio Kanvas
                   </h3>
                   <p className="text-[10px] text-stone-500 font-medium truncate">
@@ -1557,7 +1685,7 @@ export default function EditorPage({
               </div>
 
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-[11px] font-bold text-stone-800 bg-stone-100 px-2 py-0.5 rounded-md border border-stone-200 truncate max-w-[130px]">
+                <span className="text-[11px] font-bold text-stone-800 bg-stone-100 px-2 py-0.5 rounded-md border border-stone-200 truncate max-w-[120px]">
                   {selectedBackground?.name}
                 </span>
                 {openSections.background ? (
@@ -1571,6 +1699,14 @@ export default function EditorPage({
             {openSections.background && (
               <div className="px-3.5 pb-3.5 sm:px-4 sm:pb-4 pt-1 space-y-4 border-t border-stone-100 animate-fade-in">
                 
+                {/* Tips Kanvas Luas & Geser Foto */}
+                <div className="p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-[11px] text-stone-700 flex items-start gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-stone-600 flex-shrink-0 mt-0.5" />
+                  <div className="leading-snug">
+                    <strong>Kanvas Lebih Luas:</strong> Memilih motif latar akan mengaktifkan mode kanvas luas dan membuka keleluasaan untuk <strong>menggeser serta mengatur ukuran foto</strong>.
+                  </div>
+                </div>
+
                 {/* 2a. Pilihan Motif Latar Belakang Terlebih Dahulu */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -1771,12 +1907,12 @@ export default function EditorPage({
               onClick={() => toggleSection('frame')}
               className="w-full flex items-center justify-between p-3.5 sm:p-4 hover:bg-stone-50/70 transition cursor-pointer select-none text-left"
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
                 <div className="w-8 h-8 rounded-xl bg-stone-100 flex items-center justify-center text-stone-800 flex-shrink-0 border border-stone-200">
                   <Film className="w-4 h-4" />
                 </div>
-                <div>
-                  <h3 className="text-xs sm:text-[13px] font-bold text-stone-900 leading-tight">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs sm:text-[13px] font-bold text-stone-900 leading-tight truncate">
                     Warna &amp; Gaya Frame Strip
                   </h3>
                   <p className="text-[10px] text-stone-500 font-medium truncate">
@@ -1862,12 +1998,12 @@ export default function EditorPage({
               onClick={() => toggleSection('text')}
               className="w-full flex items-center justify-between p-3.5 sm:p-4 hover:bg-stone-50/70 transition cursor-pointer select-none text-left"
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
                 <div className="w-8 h-8 rounded-xl bg-stone-100 flex items-center justify-center text-stone-800 flex-shrink-0 border border-stone-200">
                   <Type className="w-4 h-4" />
                 </div>
-                <div>
-                  <h3 className="text-xs sm:text-[13px] font-bold text-stone-900 leading-tight">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs sm:text-[13px] font-bold text-stone-900 leading-tight truncate">
                     Teks Caption &amp; Tanggal
                   </h3>
                   <p className="text-[10px] text-stone-500 font-medium truncate">
