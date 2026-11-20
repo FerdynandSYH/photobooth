@@ -329,6 +329,14 @@ export default function EditorPage({
   // Status interaksi langsung pada foto: 'move' | 'scale' | 'rotate' | null
   const [activeInteractionMode, setActiveInteractionMode] = useState(null);
   const transformRef = useRef(null);
+  const rafRef = useRef(null);
+  const pendingUpdateRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
   // 1. Geser (Move) foto langsung
   const handleBodyPointerDown = (e) => {
@@ -392,7 +400,7 @@ export default function EditorPage({
     } catch (err) {}
   };
 
-  // Listener gerakan pointer global selama manipulasi berlangsung
+  // Listener gerakan pointer global selama manipulasi berlangsung (dioptimasi via requestAnimationFrame untuk 60+ FPS mulus)
   const handleTransformPointerMove = (e) => {
     if (!transformRef.current) return;
     const t = transformRef.current;
@@ -402,35 +410,60 @@ export default function EditorPage({
       const deltaY = e.clientY - t.startY;
       const factorX = (deltaX / (canvasDOMSize.width * 0.45 || 150)) * 45;
       const factorY = (deltaY / (canvasDOMSize.height * 0.45 || 150)) * 45;
-      const newX = Math.round(Math.max(-100, Math.min(100, t.initialPos.x + factorX)));
-      const newY = Math.round(Math.max(-100, Math.min(100, t.initialPos.y + factorY)));
-      if (t.targetStrip === 'strip1') {
-        onChangeStripPosition?.({ x: newX, y: newY });
-      } else {
-        onChangeStrip2Position?.({ x: newX, y: newY });
-      }
+      const newX = Math.max(-100, Math.min(100, Number((t.initialPos.x + factorX).toFixed(2))));
+      const newY = Math.max(-100, Math.min(100, Number((t.initialPos.y + factorY).toFixed(2))));
+      pendingUpdateRef.current = { mode: 'move', targetStrip: t.targetStrip, newX, newY };
     } else if (t.mode === 'scale') {
       const currDist = Math.hypot(e.clientX - t.screenCX, e.clientY - t.screenCY);
       const ratio = currDist / t.initialDist;
       const newScale = Math.max(0.55, Math.min(1.75, Number((t.initialScale * ratio).toFixed(2))));
-      if (t.targetStrip === 'strip1') {
-        onChangeStrip1Scale?.(newScale);
-      } else {
-        onChangeStrip2Scale?.(newScale);
-      }
+      pendingUpdateRef.current = { mode: 'scale', targetStrip: t.targetStrip, newScale };
     } else if (t.mode === 'rotate') {
       const currAngle = Math.atan2(e.clientY - t.screenCY, e.clientX - t.screenCX) * (180 / Math.PI);
       const diff = currAngle - t.initialAngle;
-      const newRot = Math.round(t.initialRot + diff);
-      if (t.targetStrip === 'strip1') {
-        onChangeStripRotation?.(newRot);
-      } else {
-        onChangeStrip2Rotation?.(newRot);
-      }
+      const newRot = Number((t.initialRot + diff).toFixed(1));
+      pendingUpdateRef.current = { mode: 'rotate', targetStrip: t.targetStrip, newRot };
+    }
+
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        if (pendingUpdateRef.current) {
+          const u = pendingUpdateRef.current;
+          if (u.mode === 'move') {
+            if (u.targetStrip === 'strip1') onChangeStripPosition?.({ x: u.newX, y: u.newY });
+            else onChangeStrip2Position?.({ x: u.newX, y: u.newY });
+          } else if (u.mode === 'scale') {
+            if (u.targetStrip === 'strip1') onChangeStrip1Scale?.(u.newScale);
+            else onChangeStrip2Scale?.(u.newScale);
+          } else if (u.mode === 'rotate') {
+            if (u.targetStrip === 'strip1') onChangeStripRotation?.(u.newRot);
+            else onChangeStrip2Rotation?.(u.newRot);
+          }
+        }
+      });
     }
   };
 
   const handleTransformPointerUp = (e) => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (pendingUpdateRef.current) {
+      const u = pendingUpdateRef.current;
+      if (u.mode === 'move') {
+        if (u.targetStrip === 'strip1') onChangeStripPosition?.({ x: u.newX, y: u.newY });
+        else onChangeStrip2Position?.({ x: u.newX, y: u.newY });
+      } else if (u.mode === 'scale') {
+        if (u.targetStrip === 'strip1') onChangeStrip1Scale?.(u.newScale);
+        else onChangeStrip2Scale?.(u.newScale);
+      } else if (u.mode === 'rotate') {
+        if (u.targetStrip === 'strip1') onChangeStripRotation?.(u.newRot);
+        else onChangeStrip2Rotation?.(u.newRot);
+      }
+      pendingUpdateRef.current = null;
+    }
     if (transformRef.current) {
       transformRef.current = null;
       setActiveInteractionMode(null);
@@ -482,21 +515,11 @@ export default function EditorPage({
     const currDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
     const scaleRatio = currDist / (startDist || 1);
     const newScale = Math.max(0.55, Math.min(1.75, Number((initialScale * scaleRatio).toFixed(2))));
-    if (targetStrip === 'strip1') {
-      onChangeStrip1Scale?.(newScale);
-    } else {
-      onChangeStrip2Scale?.(newScale);
-    }
 
     // Putar (Twist) dengan 2 jari
     const currAngle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * (180 / Math.PI);
     const diffAngle = currAngle - startAngle;
-    const newRot = Math.round(initialRot + diffAngle);
-    if (targetStrip === 'strip1') {
-      onChangeStripRotation?.(newRot);
-    } else {
-      onChangeStrip2Rotation?.(newRot);
-    }
+    const newRot = Number((initialRot + diffAngle).toFixed(1));
 
     // Geser (Pan) dengan 2 jari
     const currMidX = (t1.clientX + t2.clientX) / 2;
@@ -505,17 +528,56 @@ export default function EditorPage({
     const deltaY = currMidY - startMidY;
     const factorX = (deltaX / (canvasDOMSize.width * 0.45 || 150)) * 45;
     const factorY = (deltaY / (canvasDOMSize.height * 0.45 || 150)) * 45;
-    const newPosX = Math.round(Math.max(-100, Math.min(100, initialPos.x + factorX)));
-    const newPosY = Math.round(Math.max(-100, Math.min(100, initialPos.y + factorY)));
-    if (targetStrip === 'strip1') {
-      onChangeStripPosition?.({ x: newPosX, y: newPosY });
-    } else {
-      onChangeStrip2Position?.({ x: newPosX, y: newPosY });
+    const newPosX = Math.max(-100, Math.min(100, Number((initialPos.x + factorX).toFixed(2))));
+    const newPosY = Math.max(-100, Math.min(100, Number((initialPos.y + factorY).toFixed(2))));
+
+    pendingUpdateRef.current = {
+      mode: 'multitouch',
+      targetStrip,
+      newPosX,
+      newPosY,
+      newScale,
+      newRot,
+    };
+
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        if (pendingUpdateRef.current && pendingUpdateRef.current.mode === 'multitouch') {
+          const u = pendingUpdateRef.current;
+          if (u.targetStrip === 'strip1') {
+            onChangeStripPosition?.({ x: u.newPosX, y: u.newPosY });
+            onChangeStrip1Scale?.(u.newScale);
+            onChangeStripRotation?.(u.newRot);
+          } else {
+            onChangeStrip2Position?.({ x: u.newPosX, y: u.newPosY });
+            onChangeStrip2Scale?.(u.newScale);
+            onChangeStrip2Rotation?.(u.newRot);
+          }
+        }
+      });
     }
   };
 
   const handleTouchEnd = (e) => {
     if (e.touches.length < 2) {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      if (pendingUpdateRef.current && pendingUpdateRef.current.mode === 'multitouch') {
+        const u = pendingUpdateRef.current;
+        if (u.targetStrip === 'strip1') {
+          onChangeStripPosition?.({ x: u.newPosX, y: u.newPosY });
+          onChangeStrip1Scale?.(u.newScale);
+          onChangeStripRotation?.(u.newRot);
+        } else {
+          onChangeStrip2Position?.({ x: u.newPosX, y: u.newPosY });
+          onChangeStrip2Scale?.(u.newScale);
+          onChangeStrip2Rotation?.(u.newRot);
+        }
+        pendingUpdateRef.current = null;
+      }
       touchStateRef.current = null;
       if (activeInteractionMode === 'multitouch') {
         setActiveInteractionMode(null);
@@ -1423,68 +1485,6 @@ export default function EditorPage({
                       </button>
                     </div>
 
-                    {/* Pemilih Strip Aktif (Strip 1 vs Strip 2) */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-stone-700 uppercase text-[10px] tracking-wider">
-                          Pilih Strip yang Diatur / Digeser
-                        </span>
-                        <span className="text-[10px] text-stone-500 font-medium">
-                          Bisa ditarik langsung di kanvas
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setActiveStrip('strip1')}
-                          className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
-                            activeStrip === 'strip1'
-                              ? 'bg-stone-900 text-white border-stone-900 shadow-2xs'
-                              : 'bg-white border-stone-200 text-stone-700 hover:bg-stone-50'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold">Strip 1 (Foto Asli)</span>
-                            <span className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${
-                              topStrip === 'strip1'
-                                ? 'bg-amber-100 text-amber-900 border border-amber-200'
-                                : 'bg-stone-200/60 text-stone-600'
-                            }`}>
-                              {topStrip === 'strip1' ? 'Di Atas' : 'Di Bawah'}
-                            </span>
-                          </div>
-                          <p className={`text-[10px] mt-1 ${activeStrip === 'strip1' ? 'text-stone-300' : 'text-stone-500'}`}>
-                            Rotasi: {stripRotation}° • Pos: {stripPosition.x}, {stripPosition.y}
-                          </p>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setActiveStrip('strip2')}
-                          className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
-                            activeStrip === 'strip2'
-                              ? 'bg-stone-900 text-white border-stone-900 shadow-2xs'
-                              : 'bg-white border-stone-200 text-stone-700 hover:bg-stone-50'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold">Strip 2 (Duplikat Acak)</span>
-                            <span className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${
-                              topStrip === 'strip2'
-                                ? 'bg-amber-100 text-amber-900 border border-amber-200'
-                                : 'bg-stone-200/60 text-stone-600'
-                            }`}>
-                              {topStrip === 'strip2' ? 'Di Atas' : 'Di Bawah'}
-                            </span>
-                          </div>
-                          <p className={`text-[10px] mt-1 ${activeStrip === 'strip2' ? 'text-stone-300' : 'text-stone-500'}`}>
-                            Rotasi: {strip2Rotation}° • Pos: {strip2Position.x}, {strip2Position.y}
-                          </p>
-                        </button>
-                      </div>
-                    </div>
-
                     {/* Tukar Lapisan Tumpukan (Stack Order) */}
                     <div className="flex items-center justify-between p-2.5 bg-stone-50 rounded-xl border border-stone-200">
                       <div className="min-w-0 pr-2">
@@ -1506,97 +1506,6 @@ export default function EditorPage({
                       >
                         Tukar Posisi Tumpukan
                       </button>
-                    </div>
-
-                    {/* Card Petunjuk Interaksi Langsung (Mobile & Tablet Friendly) */}
-                    <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 space-y-2">
-                      <div className="flex items-center justify-between text-xs font-bold text-stone-800">
-                        <span className="flex items-center gap-1.5">
-                          <Move className="w-3.5 h-3.5 text-stone-700" />
-                          <span>Atur Langsung Pada Foto</span>
-                        </span>
-                        <span className="text-[10px] text-stone-500 font-semibold bg-white px-2 py-0.5 rounded border border-stone-200">
-                          Mobile &amp; iPad
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-stone-500 leading-relaxed">
-                        Anda dapat berinteraksi langsung dengan foto di kanvas: geser posisi secara bebas, cubit atau tarik sudut untuk memperbesar/memperkecil, dan putar dengan knob atas atau 2 jari.
-                      </p>
-                      
-                      {/* Kontrol Cepat Ukuran & Rotasi */}
-                      <div className="grid grid-cols-2 gap-2 pt-1">
-                        {/* Kontrol Ukuran */}
-                        <div className="bg-white p-2 rounded-lg border border-stone-200 flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-stone-700">Ukuran:</span>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (activeStrip === 'strip1') {
-                                  onChangeStrip1Scale?.(Math.max(0.55, Number(((strip1Scale || 1) - 0.1).toFixed(2))));
-                                } else {
-                                  onChangeStrip2Scale?.(Math.max(0.55, Number(((strip2Scale || 1) - 0.1).toFixed(2))));
-                                }
-                              }}
-                              className="w-6 h-6 rounded bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs flex items-center justify-center cursor-pointer"
-                            >
-                              -
-                            </button>
-                            <span className="text-[10px] font-bold text-stone-900 min-w-[32px] text-center">
-                              {Math.round((activeStrip === 'strip1' ? (strip1Scale || 1) : (strip2Scale || 1)) * 100)}%
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (activeStrip === 'strip1') {
-                                  onChangeStrip1Scale?.(Math.min(1.75, Number(((strip1Scale || 1) + 0.1).toFixed(2))));
-                                } else {
-                                  onChangeStrip2Scale?.(Math.min(1.75, Number(((strip2Scale || 1) + 0.1).toFixed(2))));
-                                }
-                              }}
-                              className="w-6 h-6 rounded bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs flex items-center justify-center cursor-pointer"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Kontrol Rotasi */}
-                        <div className="bg-white p-2 rounded-lg border border-stone-200 flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-stone-700">Putar:</span>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (activeStrip === 'strip1') {
-                                  onChangeStripRotation?.((stripRotation || 0) - 5);
-                                } else {
-                                  onChangeStrip2Rotation?.((strip2Rotation || 0) - 5);
-                                }
-                              }}
-                              className="w-6 h-6 rounded bg-stone-100 hover:bg-stone-200 text-stone-800 flex items-center justify-center cursor-pointer"
-                            >
-                              <RotateCcw className="w-3 h-3" />
-                            </button>
-                            <span className="text-[10px] font-bold text-stone-900 min-w-[28px] text-center">
-                              {activeStrip === 'strip1' ? (stripRotation || 0) : (strip2Rotation || 0)}°
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (activeStrip === 'strip1') {
-                                  onChangeStripRotation?.((stripRotation || 0) + 5);
-                                } else {
-                                  onChangeStrip2Rotation?.((strip2Rotation || 0) + 5);
-                                }
-                              }}
-                              className="w-6 h-6 rounded bg-stone-100 hover:bg-stone-200 text-stone-800 flex items-center justify-center cursor-pointer"
-                            >
-                              <RotateCw className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
                     </div>
 
                     {/* Preset Cepat Tata Letak 2 Strip */}

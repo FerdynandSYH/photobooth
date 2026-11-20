@@ -148,10 +148,46 @@ function drawFilmStripMarkings(ctx, stripX, stripY, stripWidth, stripHeight, row
   ctx.restore();
 }
 
+// Offscreen bitmap cache for ultra-smooth 60+ FPS manipulation
+const stripBitmapCache = new Map();
+
+function getStripCacheKey({
+  photos,
+  layout,
+  frame,
+  filterConfig,
+  fontConfig,
+  footerText = '',
+  fontSize = 21,
+  showDate = true,
+  customDate = '',
+}) {
+  const photoKeys = photos
+    ? photos.map(p => (p?.dataUrl ? p.dataUrl.slice(0, 80) + '_' + p.dataUrl.length : (p?.id || ''))).join('|')
+    : '';
+  return [
+    photoKeys,
+    layout?.name || layout?.photoCount || '',
+    layout?.cols || '',
+    layout?.rows || '',
+    frame?.id || '',
+    frame?.bgValue || '',
+    filterConfig?.id || '',
+    filterConfig?.filterValue || '',
+    fontConfig?.id || '',
+    footerText,
+    fontSize,
+    showDate ? '1' : '0',
+    customDate,
+  ].join(':::');
+}
+
 /**
- * Render a single complete photobooth strip at given position and rotation with shadow
+ * Compiles a strip (frame, film markings, photos with filters, footer text)
+ * into an offscreen canvas. Once compiled, moving/rotating/scaling the strip
+ * uses hardware-accelerated drawImage, eliminating all CPU pixel looping and lag!
  */
-async function drawSingleStrip(ctx, {
+async function compileStripBitmap({
   photos,
   layout,
   frame,
@@ -161,13 +197,8 @@ async function drawSingleStrip(ctx, {
   fontSize = 21,
   showDate = true,
   customDate = '',
-  stripX,
-  stripY,
   stripWidth,
   stripHeight,
-  rotation = 0,
-  scale = 1,
-  hasShadow = true,
 }) {
   const {
     cols = 1,
@@ -179,55 +210,24 @@ async function drawSingleStrip(ctx, {
     footerHeight = 85,
   } = layout;
 
-  ctx.save();
+  const offscreen = document.createElement('canvas');
+  offscreen.width = stripWidth;
+  offscreen.height = stripHeight;
+  const ctx = offscreen.getContext('2d');
 
-  // Rotate & scale around center of the strip
-  const centerX = stripX + stripWidth / 2;
-  const centerY = stripY + stripHeight / 2;
-  ctx.translate(centerX, centerY);
-  if (rotation) {
-    ctx.rotate((rotation * Math.PI) / 180);
-  }
-  if (scale && scale !== 1) {
-    ctx.scale(scale, scale);
-  }
-  ctx.translate(-stripWidth / 2, -stripHeight / 2);
-
-  // 1. Realistic 3D drop shadow (casts on background and on any overlapping strip beneath)
-  if (hasShadow) {
-    ctx.save();
-    // Ambient soft blur shadow
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
-    ctx.shadowBlur = 38;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 16;
-    ctx.fillStyle = frame.bgValue || '#FFFFFF';
-    drawRoundedRect(ctx, 0, 0, stripWidth, stripHeight, 10);
-    ctx.fill();
-
-    // Directional contact shadow for sharp overlap definition
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.28)';
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 6;
-    drawRoundedRect(ctx, 0, 0, stripWidth, stripHeight, 10);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  // 2. Photo Strip Frame Body
+  // 1. Photo Strip Frame Body
   ctx.save();
   drawRoundedRect(ctx, 0, 0, stripWidth, stripHeight, 10);
   ctx.fillStyle = frame.bgValue || '#FFFFFF';
   ctx.fill();
   ctx.restore();
 
-  // 3. Film Markings if 35mm film frame
+  // 2. Film Markings if 35mm film frame
   if (frame.hasFilmMarkings) {
     drawFilmStripMarkings(ctx, 0, 0, stripWidth, stripHeight, rows, photoHeight, gap, margin, frame.isDark);
   }
 
-  // 4. Render Each Photo Slot
+  // 3. Render Each Photo Slot
   for (let index = 0; index < layout.photoCount; index++) {
     const col = index % cols;
     const row = Math.floor(index / cols);
@@ -303,7 +303,7 @@ async function drawSingleStrip(ctx, {
     ctx.restore();
   }
 
-  // 5. Render Footer Info (Caption & Date)
+  // 4. Render Footer Info (Caption & Date)
   const footerCenterY = stripHeight - (footerHeight / 2);
   const stripCenterX = stripWidth / 2;
   const textColor = frame.textColor || (frame.isDark ? '#FFFFFF' : '#1E293B');
@@ -333,6 +333,103 @@ async function drawSingleStrip(ctx, {
     ctx.fillText(`${displayDate} • MEMORIES`, stripCenterX, footerCenterY + 16);
   }
   ctx.restore();
+
+  return offscreen;
+}
+
+/**
+ * Render a single complete photobooth strip at given position and rotation with shadow
+ */
+async function drawSingleStrip(ctx, {
+  photos,
+  layout,
+  frame,
+  filterConfig,
+  fontConfig,
+  footerText = 'GOPHOTOBOOTH STUDIO',
+  fontSize = 21,
+  showDate = true,
+  customDate = '',
+  stripX,
+  stripY,
+  stripWidth,
+  stripHeight,
+  rotation = 0,
+  scale = 1,
+  hasShadow = true,
+}) {
+  const cacheKey = getStripCacheKey({
+    photos,
+    layout,
+    frame,
+    filterConfig,
+    fontConfig,
+    footerText,
+    fontSize,
+    showDate,
+    customDate,
+  });
+
+  let stripBitmap = stripBitmapCache.get(cacheKey);
+  if (!stripBitmap) {
+    stripBitmap = await compileStripBitmap({
+      photos,
+      layout,
+      frame,
+      filterConfig,
+      fontConfig,
+      footerText,
+      fontSize,
+      showDate,
+      customDate,
+      stripWidth,
+      stripHeight,
+    });
+    if (stripBitmapCache.size > 24) {
+      const oldestKey = stripBitmapCache.keys().next().value;
+      stripBitmapCache.delete(oldestKey);
+    }
+    stripBitmapCache.set(cacheKey, stripBitmap);
+  }
+
+  ctx.save();
+
+  // Rotate & scale around center of the strip
+  const centerX = stripX + stripWidth / 2;
+  const centerY = stripY + stripHeight / 2;
+  ctx.translate(centerX, centerY);
+  if (rotation) {
+    ctx.rotate((rotation * Math.PI) / 180);
+  }
+  if (scale && scale !== 1) {
+    ctx.scale(scale, scale);
+  }
+  ctx.translate(-stripWidth / 2, -stripHeight / 2);
+
+  // 1. Realistic 3D drop shadow (casts on background and on any overlapping strip beneath)
+  if (hasShadow) {
+    ctx.save();
+    // Ambient soft blur shadow
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+    ctx.shadowBlur = 38;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 16;
+    ctx.fillStyle = frame.bgValue || '#FFFFFF';
+    drawRoundedRect(ctx, 0, 0, stripWidth, stripHeight, 10);
+    ctx.fill();
+
+    // Directional contact shadow for sharp overlap definition
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.28)';
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 6;
+    drawRoundedRect(ctx, 0, 0, stripWidth, stripHeight, 10);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 2. Hardware-accelerated draw of the pre-compiled strip bitmap
+  ctx.drawImage(stripBitmap, 0, 0);
 
   ctx.restore();
 }
