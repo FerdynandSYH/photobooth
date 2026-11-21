@@ -641,7 +641,7 @@ export default function EditorPage({
   const [frameCategory, setFrameCategory] = useState('all');
   const displayedFrames = useMemo(() => {
     if (frameCategory === 'all') return FRAMES;
-    return FRAMES.filter(f => f.category === frameCategory);
+    return FRAMES.filter(f => f.category === frameCategory || f.categories?.includes(frameCategory));
   }, [frameCategory]);
 
   // Mini preview ratio box helper

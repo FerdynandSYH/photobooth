@@ -110,6 +110,7 @@ export function clearCanvasCaches() {
   bgImageCache.clear();
   photoImageCache.clear();
   stripBitmapCache.clear();
+  framePatternCache.clear();
 }
 
 /**
@@ -211,6 +212,219 @@ function drawFilmStripMarkings(ctx, stripX, stripY, stripWidth, stripHeight, row
   ctx.restore();
 }
 
+/**
+ * Procedural Pattern Engine for Photo Strip Frames.
+ * Renders high-resolution vector patterns (staggered polka dot grids, Y2K sparkles)
+ * to an offscreen canvas and compiles a seamless CanvasPattern.
+ */
+const framePatternCache = new Map();
+
+function draw4PointStar(ctx, cx, cy, rOuter, pinchFactor = 0.22) {
+  const pinch = rOuter * pinchFactor;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - rOuter);
+  ctx.quadraticCurveTo(cx + pinch, cy - pinch, cx + rOuter, cy);
+  ctx.quadraticCurveTo(cx + pinch, cy + pinch, cx, cy + rOuter);
+  ctx.quadraticCurveTo(cx - pinch, cy + pinch, cx - rOuter, cy);
+  ctx.quadraticCurveTo(cx - pinch, cy - pinch, cx, cy - rOuter);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/**
+ * Draws a slightly organic / hand-crafted retro printed dot using subtle bezier variations
+ */
+function drawOrganicDot(ctx, cx, cy, r, seed = 1) {
+  const r1 = r * (0.94 + 0.08 * Math.sin(seed * 1.7));
+  const r2 = r * (0.97 + 0.06 * Math.cos(seed * 2.3));
+  const r3 = r * (0.93 + 0.09 * Math.sin(seed * 3.1));
+  const r4 = r * (0.98 + 0.05 * Math.cos(seed * 4.2));
+
+  const k = 0.55228475;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r1);
+  ctx.bezierCurveTo(cx + r1 * k, cy - r1, cx + r2, cy - r2 * k, cx + r2, cy);
+  ctx.bezierCurveTo(cx + r2, cy + r2 * k, cx + r3 * k, cy + r3, cx, cy + r3);
+  ctx.bezierCurveTo(cx - r3 * k, cy + r3, cx - r4, cy + r4 * k, cx - r4, cy);
+  ctx.bezierCurveTo(cx - r4, cy - r4 * k, cx - r1 * k, cy - r1, cx, cy - r1);
+  ctx.closePath();
+  ctx.fill();
+}
+
+export function createFramePattern(ctx, frame, scaleMultiplier = 1) {
+  if (!frame || !frame.patternType) return null;
+
+  try {
+    const pCanvas = document.createElement('canvas');
+    const pCtx = pCanvas.getContext('2d');
+    pCtx.imageSmoothingEnabled = true;
+    pCtx.imageSmoothingQuality = 'high';
+
+    switch (frame.patternType) {
+      // 1. Cream Linen Polka: Warm cream, delicate linen weave lines, spaced petite black dots (48px tile, 2-point staggered grid)
+      case 'cream-linen-polka': {
+        const S = Math.max(32, Math.round(48 * scaleMultiplier));
+        const R = Math.max(1.8, Math.round(3.0 * scaleMultiplier));
+        pCanvas.width = S;
+        pCanvas.height = S;
+
+        // Base warm cream
+        pCtx.fillStyle = frame.bgValue || '#F4EFE6';
+        pCtx.fillRect(0, 0, S, S);
+
+        // Linen weave lines (super fine, opacity 0.04)
+        pCtx.strokeStyle = 'rgba(70, 50, 35, 0.04)';
+        pCtx.lineWidth = 1;
+        const lineGap = Math.max(3, Math.round(4 * scaleMultiplier));
+        pCtx.beginPath();
+        for (let lx = 0; lx <= S; lx += lineGap) {
+          pCtx.moveTo(lx, 0);
+          pCtx.lineTo(lx, S);
+        }
+        for (let ly = 0; ly <= S; ly += lineGap) {
+          pCtx.moveTo(0, ly);
+          pCtx.lineTo(S, ly);
+        }
+        pCtx.stroke();
+
+        // Staggered diagonal grid: 2 dots per tile, fully interior (zero edge clipping / no collision)
+        pCtx.fillStyle = '#141414';
+        pCtx.beginPath();
+        pCtx.arc(S * 0.25, S * 0.25, R, 0, Math.PI * 2);
+        pCtx.arc(S * 0.75, S * 0.75, R, 0, Math.PI * 2);
+        pCtx.fill();
+        break;
+      }
+
+      // 2. Espresso Organic Polka: Dark espresso base, handcrafted organic cream dots
+      case 'espresso-organic-polka': {
+        const S = Math.max(32, Math.round(48 * scaleMultiplier));
+        const R1 = Math.max(2.4, Math.round(3.8 * scaleMultiplier));
+        const R2 = Math.max(2.7, Math.round(4.3 * scaleMultiplier));
+        pCanvas.width = S;
+        pCanvas.height = S;
+
+        pCtx.fillStyle = frame.bgValue || '#1F1712';
+        pCtx.fillRect(0, 0, S, S);
+
+        pCtx.fillStyle = '#EFE8DC';
+        // Organic dots at diagonal points
+        drawOrganicDot(pCtx, S * 0.25, S * 0.25, R1, 3.7);
+        drawOrganicDot(pCtx, S * 0.75, S * 0.75, R2, 8.4);
+        break;
+      }
+
+      // 3. Noir Classic Polka: Deep black base, pure white precision dots
+      case 'noir-classic-polka': {
+        const S = Math.max(32, Math.round(48 * scaleMultiplier));
+        const R = Math.max(2.5, Math.round(4.0 * scaleMultiplier));
+        pCanvas.width = S;
+        pCanvas.height = S;
+
+        pCtx.fillStyle = frame.bgValue || '#0B0B0B';
+        pCtx.fillRect(0, 0, S, S);
+
+        pCtx.fillStyle = '#FFFFFF';
+        pCtx.beginPath();
+        pCtx.arc(S * 0.25, S * 0.25, R, 0, Math.PI * 2);
+        pCtx.arc(S * 0.75, S * 0.75, R, 0, Math.PI * 2);
+        pCtx.fill();
+        break;
+      }
+
+      // 4. Cherry Cream Polka: Warm ivory cream base, cherry red precision dots
+      case 'cherry-cream-polka': {
+        const S = Math.max(32, Math.round(48 * scaleMultiplier));
+        const R = Math.max(2.5, Math.round(4.0 * scaleMultiplier));
+        pCanvas.width = S;
+        pCanvas.height = S;
+
+        pCtx.fillStyle = frame.bgValue || '#F9F4E8';
+        pCtx.fillRect(0, 0, S, S);
+
+        pCtx.fillStyle = '#7D0A1B';
+        pCtx.beginPath();
+        pCtx.arc(S * 0.25, S * 0.25, R, 0, Math.PI * 2);
+        pCtx.arc(S * 0.75, S * 0.75, R, 0, Math.PI * 2);
+        pCtx.fill();
+        break;
+      }
+
+      // 5. Mint Choco Polka: Soft pastel mint base, warm dark chocolate precision dots
+      case 'mint-choco-polka': {
+        const S = Math.max(32, Math.round(48 * scaleMultiplier));
+        const R = Math.max(2.5, Math.round(4.0 * scaleMultiplier));
+        pCanvas.width = S;
+        pCanvas.height = S;
+
+        pCtx.fillStyle = frame.bgValue || '#DDF2E8';
+        pCtx.fillRect(0, 0, S, S);
+
+        pCtx.fillStyle = '#3E2B22';
+        pCtx.beginPath();
+        pCtx.arc(S * 0.25, S * 0.25, R, 0, Math.PI * 2);
+        pCtx.arc(S * 0.75, S * 0.75, R, 0, Math.PI * 2);
+        pCtx.fill();
+        break;
+      }
+
+      // 6. Y2K Star Sparkle: Midnight indigo base, multi-scale 4-point sparkles
+      case 'y2k-star': {
+        const S = Math.max(32, Math.round(52 * scaleMultiplier));
+        pCanvas.width = S;
+        pCanvas.height = S;
+
+        pCtx.fillStyle = frame.bgValue || '#161829';
+        pCtx.fillRect(0, 0, S, S);
+
+        // Medium primary star at center (silver-white)
+        pCtx.fillStyle = '#F8FAFC';
+        draw4PointStar(pCtx, S / 2, S / 2, Math.max(3.5, 7.5 * scaleMultiplier), 0.20);
+
+        // Secondary stars at diagonals (lavender silver)
+        pCtx.fillStyle = '#C7D2FE';
+        draw4PointStar(pCtx, S * 0.2, S * 0.2, Math.max(2, 4.0 * scaleMultiplier), 0.22);
+        draw4PointStar(pCtx, S * 0.8, S * 0.8, Math.max(2, 4.0 * scaleMultiplier), 0.22);
+
+        // Tiny sparkle points
+        pCtx.fillStyle = '#F8FAFC';
+        pCtx.beginPath();
+        pCtx.arc(S * 0.8, S * 0.2, Math.max(0.8, 1.2 * scaleMultiplier), 0, Math.PI * 2);
+        pCtx.arc(S * 0.2, S * 0.8, Math.max(0.8, 1.2 * scaleMultiplier), 0, Math.PI * 2);
+        pCtx.fill();
+        break;
+      }
+
+      default:
+        return null;
+    }
+
+    return ctx.createPattern(pCanvas, 'repeat');
+  } catch (e) {
+    console.warn('Frame pattern creation error:', e);
+    return null;
+  }
+}
+
+export function getFramePattern(ctx, frame, scaleMultiplier = 1) {
+  if (!frame || !frame.patternType) return null;
+
+  const cacheKey = `${frame.id}_${scaleMultiplier}_v3`;
+  if (framePatternCache.has(cacheKey)) {
+    return framePatternCache.get(cacheKey);
+  }
+
+  const pattern = createFramePattern(ctx, frame, scaleMultiplier);
+  if (pattern) {
+    if (framePatternCache.size > 32) {
+      const oldest = framePatternCache.keys().next().value;
+      framePatternCache.delete(oldest);
+    }
+    framePatternCache.set(cacheKey, pattern);
+  }
+  return pattern;
+}
+
 function getStripCacheKey({
   photos,
   layout,
@@ -287,11 +501,19 @@ async function compileStripBitmap({
   offscreen.height = stripHeight;
   const ctx = offscreen.getContext('2d');
 
-  // 1. Photo Strip Frame Body
+  // 1. Photo Strip Frame Body (Base color + procedural pattern if enabled)
   ctx.save();
   drawRoundedRect(ctx, 0, 0, stripWidth, stripHeight, cornerRadius);
   ctx.fillStyle = frame.bgValue || '#FFFFFF';
   ctx.fill();
+
+  if (frame.hasPattern || frame.patternType) {
+    const pattern = getFramePattern(ctx, frame, scaleMultiplier);
+    if (pattern) {
+      ctx.fillStyle = pattern;
+      ctx.fill();
+    }
+  }
   ctx.restore();
 
   // 2. Film Markings if 35mm film frame
@@ -395,6 +617,36 @@ async function compileStripBitmap({
       ctx.font = `${activeFontWeight} ${baseFontSize}px ${activeFontFamily}`;
       measuredWidth = ctx.measureText(displayTitle).width;
     }
+  }
+
+  // Draw solid rounded label pill/box matching frame.bgValue behind watermark & date for pattern frames
+  if (frame.hasPattern || frame.patternType) {
+    const isDark = frame.isDark;
+    const pillPaddingX = Math.round(20 * scaleMultiplier);
+    const pillWidth = Math.min(
+      stripWidth - Math.round(36 * scaleMultiplier),
+      Math.max(measuredWidth + pillPaddingX * 2, Math.round(200 * scaleMultiplier))
+    );
+    const pillHeight = showDate
+      ? Math.round(48 * scaleMultiplier)
+      : Math.round(baseFontSize + 18 * scaleMultiplier);
+    const pillX = stripCenterX - pillWidth / 2;
+    const pillY = footerCenterY - pillHeight / 2;
+    const pillRadius = Math.round(pillHeight / 2);
+
+    ctx.save();
+    ctx.fillStyle = frame.bgValue || (isDark ? '#111827' : '#FFFFFF');
+    ctx.shadowColor = isDark ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.08)';
+    ctx.shadowBlur = Math.round(6 * scaleMultiplier);
+    ctx.shadowOffsetY = Math.round(1.5 * scaleMultiplier);
+    drawRoundedRect(ctx, pillX, pillY, pillWidth, pillHeight, pillRadius);
+    ctx.fill();
+
+    ctx.shadowColor = 'transparent';
+    ctx.lineWidth = Math.max(1, Math.round(1 * scaleMultiplier));
+    ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)';
+    ctx.stroke();
+    ctx.restore();
   }
 
   ctx.shadowColor = frame.isDark ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.6)';
