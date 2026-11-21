@@ -105,6 +105,19 @@ export const FILTERS = [
     previewGradient: 'linear-gradient(135deg, #14100c 0%, #78716c 50%, #efe6d8 100%)',
     swatchColors: ['#14100c', '#efe6d8', '#ffffff'],
   },
+  {
+    id: 'rio-de-janeiro',
+    name: 'Rio de Janeiro',
+    category: 'cute',
+    categories: ['cute', 'retro', 'all'],
+    badge: 'IG Sunset Glow',
+    description: 'Replikasi filter ikonik Rio de Janeiro di Instagram Stories: nuansa coral-magenta hangat, golden amber, saturasi vibrant, dan warm skin glow',
+    filterValue: 'contrast(106%) saturate(125%) brightness(105%) hue-rotate(-6deg) sepia(8%)',
+    hasGrain: false,
+    hasVignette: false,
+    previewGradient: 'linear-gradient(135deg, #ff5f87 0%, #ff8c42 50%, #fed7aa 100%)',
+    swatchColors: ['#ff5f87', '#ff8c42', '#fed7aa'],
+  },
 
   // 5. Retro & Vintage Analog Era (Lengkap 13 Preset Original)
   {

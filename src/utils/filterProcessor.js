@@ -435,6 +435,52 @@ export function applyFilterEffects(ctx, x, y, width, height, filterId, imgSource
         ctx.strokeRect(x, y, width, height);
         break;
       }
+
+      // ==========================================
+      // PRESET BARU: Rio de Janeiro (Instagram Stories Tropical Sunset Glow)
+      // ==========================================
+      case 'rio-de-janeiro': {
+        // 1. Soft Warm Shadows (Lifted dark point with warm plum/brown, skin-tone safe)
+        ctx.globalCompositeOperation = 'screen';
+        ctx.fillStyle = 'rgb(48, 28, 36)';
+        ctx.globalAlpha = 0.10;
+        ctx.fillRect(x, y, width, height);
+
+        // 2. Warm Magenta-Coral to Golden Amber Gradient (Tropical Sunset Color Grading)
+        const sunsetGrad = ctx.createLinearGradient(x, y, x, y + height);
+        sunsetGrad.addColorStop(0.0, 'rgba(255, 95, 135, 0.22)'); // Coral Pink / Magenta hangat di atas
+        sunsetGrad.addColorStop(0.55, 'rgba(255, 130, 85, 0.20)'); // Transisi peachy coral
+        sunsetGrad.addColorStop(1.0, 'rgba(255, 165, 70, 0.18)'); // Golden Amber di bawah
+
+        ctx.globalCompositeOperation = 'soft-light';
+        ctx.fillStyle = sunsetGrad;
+        ctx.fillRect(x, y, width, height);
+
+        // 3. Channel Shift: Red boost (+20%), Green slight boost (+4%), Blue reduction (-16%)
+        ctx.globalCompositeOperation = 'color';
+        ctx.fillStyle = '#ff6050';
+        ctx.globalAlpha = 0.18;
+        ctx.fillRect(x, y, width, height);
+
+        // 4. Vibrant Saturation Boost (+20% - +25% vibrance on lips, skin, & environment)
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.fillStyle = '#ff7a59';
+        ctx.globalAlpha = 0.15;
+        ctx.fillRect(x, y, width, height);
+
+        // 5. Subtle Warm Skin Glow (Peach Screen tint ~0.08)
+        ctx.globalCompositeOperation = 'screen';
+        ctx.fillStyle = 'rgba(255, 190, 170, 0.12)';
+        ctx.globalAlpha = 0.08;
+        ctx.fillRect(x, y, width, height);
+
+        // 6. Peachy Midtone Radiance
+        ctx.globalCompositeOperation = 'soft-light';
+        ctx.fillStyle = '#ffdfd3';
+        ctx.globalAlpha = 0.18;
+        ctx.fillRect(x, y, width, height);
+        break;
+      }
       // ==========================================
       // PRESET BARU 1: Rosy Coquette (Cute Cewek)
       // ==========================================
