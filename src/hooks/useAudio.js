@@ -166,40 +166,69 @@ function getSoundDataUrls() {
   return SOUND_DATA_URLS;
 }
 
+// Module-level AudioContext singleton to prevent exceeding browser AudioContext limits
+let sharedAudioCtx = null;
+
+function getSharedAudioContext() {
+  if (typeof window === 'undefined') return null;
+  if (!sharedAudioCtx) {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      sharedAudioCtx = new AudioCtx();
+    }
+  }
+  if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
+    sharedAudioCtx.resume().catch(() => {});
+  }
+  return sharedAudioCtx;
+}
+
+/**
+ * 100% silent user gesture unlocker for Web Audio API.
+ * Never creates an <audio> tag with SFX wav or plays audible beeps.
+ * Uses a zero-amplitude 1-sample PCM buffer that satisfies mobile Safari & Chrome
+ * gesture requirements with complete silence.
+ */
+function silentUnlockAudioContext() {
+  try {
+    const ctx = getSharedAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    // Zero-amplitude 1-sample buffer (literally 0.0 value, pure silence)
+    const silentBuf = ctx.createBuffer(1, 1, 22050);
+    const source = ctx.createBufferSource();
+    source.buffer = silentBuf;
+    source.connect(ctx.destination);
+    source.start(0);
+  } catch (e) {}
+}
+
 export function useAudio() {
   const [isMuted, setIsMuted] = useState(false);
-  const audioCtxRef = useRef(null);
   const currentPrintingAudioRef = useRef(null);
-
-  // Safely get or create Web Audio Context
-  const getAudioContext = useCallback(() => {
-    if (!audioCtxRef.current) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) {
-        audioCtxRef.current = new AudioCtx();
-      }
-    }
-    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume().catch(() => {});
-    }
-    return audioCtxRef.current;
-  }, []);
 
   // Universal sound player: Plays via HTML5 Audio with fallback to Web Audio API
   const playSoundData = useCallback((dataUrl, volume = 0.8) => {
-    if (isMuted) return;
+    if (isMuted) return null;
     try {
       const audioEl = new Audio(dataUrl);
       audioEl.volume = Math.max(0, Math.min(1, volume));
+
+      // Automatic garbage collection on audio completion
+      audioEl.onended = () => {
+        audioEl.src = '';
+        try { audioEl.remove(); } catch (err) {}
+      };
+
       const playPromise = audioEl.play();
       if (playPromise && typeof playPromise.catch === 'function') {
-        playPromise.catch((e) => {
-          // If browser blocked HTML5 Audio, attempt Web Audio API fallback
+        playPromise.catch(() => {
+          // If browser blocked HTML5 Audio, attempt Web Audio API resume fallback
           try {
-            const ctx = getAudioContext();
-            if (ctx) {
-              if (ctx.state === 'suspended') ctx.resume();
-            }
+            const ctx = getSharedAudioContext();
+            if (ctx && ctx.state === 'suspended') ctx.resume();
           } catch (err) {}
         });
       }
@@ -207,49 +236,46 @@ export function useAudio() {
     } catch (e) {
       return null;
     }
-  }, [isMuted, getAudioContext]);
+  }, [isMuted]);
 
-  // Explicit user gesture unlocker
+  // Explicit user gesture unlocker (always 100% silent)
   const unlockAudio = useCallback(() => {
-    try {
-      const ctx = getAudioContext();
-      if (ctx && ctx.state === 'suspended') {
-        ctx.resume().catch(() => {});
-      }
-      // Warm up HTML5 Audio subsystem with a brief silent play
-      const sounds = getSoundDataUrls();
-      const silentAudio = new Audio(sounds.beep);
-      silentAudio.volume = 0;
-      const p = silentAudio.play();
-      if (p && typeof p.then === 'function') {
-        p.then(() => {
-          silentAudio.pause();
-          silentAudio.currentTime = 0;
-        }).catch(() => {});
-      }
-    } catch (e) {}
-  }, [getAudioContext]);
+    silentUnlockAudioContext();
+  }, []);
 
-  // Global listener to immediately unlock Audio subsystem upon any user touch or click
+  // Global one-time listener to silently unlock AudioContext upon very first user touch or click.
+  // CRITICAL: Uses { once: true } and immediate self-removal so it NEVER runs on subsequent touches!
   useEffect(() => {
-    const handleUserGesture = () => {
-      unlockAudio();
+    let unlocked = false;
+
+    const handleFirstGesture = () => {
+      if (unlocked) return;
+      unlocked = true;
+      silentUnlockAudioContext();
+      cleanUpListeners();
     };
 
-    window.addEventListener('click', handleUserGesture, { capture: true, passive: true });
-    window.addEventListener('touchstart', handleUserGesture, { capture: true, passive: true });
-    window.addEventListener('pointerdown', handleUserGesture, { capture: true, passive: true });
-    window.addEventListener('keydown', handleUserGesture, { capture: true, passive: true });
+    const cleanUpListeners = () => {
+      window.removeEventListener('click', handleFirstGesture, true);
+      window.removeEventListener('touchstart', handleFirstGesture, true);
+      window.removeEventListener('touchend', handleFirstGesture, true);
+      window.removeEventListener('pointerdown', handleFirstGesture, true);
+      window.removeEventListener('keydown', handleFirstGesture, true);
+    };
+
+    window.addEventListener('click', handleFirstGesture, { capture: true, once: true, passive: true });
+    window.addEventListener('touchstart', handleFirstGesture, { capture: true, once: true, passive: true });
+    window.addEventListener('touchend', handleFirstGesture, { capture: true, once: true, passive: true });
+    window.addEventListener('pointerdown', handleFirstGesture, { capture: true, once: true, passive: true });
+    window.addEventListener('keydown', handleFirstGesture, { capture: true, once: true, passive: true });
 
     return () => {
-      window.removeEventListener('click', handleUserGesture, { capture: true });
-      window.removeEventListener('touchstart', handleUserGesture, { capture: true });
-      window.removeEventListener('pointerdown', handleUserGesture, { capture: true });
-      window.removeEventListener('keydown', handleUserGesture, { capture: true });
+      cleanUpListeners();
     };
-  }, [unlockAudio]);
+  }, []);
 
   // Countdown timer beep (normal beep vs CHEESE final cue)
+  // ONLY triggered when runCountdown in App.jsx actively counts down
   const playBeep = useCallback((isFinal = false) => {
     if (isMuted) return;
     const sounds = getSoundDataUrls();
@@ -270,7 +296,9 @@ export function useAudio() {
     if (currentPrintingAudioRef.current) {
       try {
         currentPrintingAudioRef.current.pause();
+        currentPrintingAudioRef.current.src = '';
       } catch (e) {}
+      currentPrintingAudioRef.current = null;
     }
     const audioEl = playSoundData(sounds.printing, 0.70);
     currentPrintingAudioRef.current = audioEl;
@@ -282,11 +310,26 @@ export function useAudio() {
     if (currentPrintingAudioRef.current) {
       try {
         currentPrintingAudioRef.current.pause();
+        currentPrintingAudioRef.current.src = '';
       } catch (e) {}
+      currentPrintingAudioRef.current = null;
     }
     const sounds = getSoundDataUrls();
     playSoundData(sounds.printComplete, 0.90);
   }, [isMuted, playSoundData]);
+
+  // Clean up any active printing audio when hook unmounts
+  useEffect(() => {
+    return () => {
+      if (currentPrintingAudioRef.current) {
+        try {
+          currentPrintingAudioRef.current.pause();
+          currentPrintingAudioRef.current.src = '';
+        } catch (e) {}
+        currentPrintingAudioRef.current = null;
+      }
+    };
+  }, []);
 
   const toggleMute = useCallback(() => {
     setIsMuted(prev => !prev);
