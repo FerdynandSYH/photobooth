@@ -337,7 +337,7 @@ async function compileStripBitmap({
         // 2. Terapkan color grading & blend modes terkalibrasi secara presisi dan terisolasi
         const activeFilter = filterConfig || photo.filterConfig;
         if (activeFilter && activeFilter.id && activeFilter.id !== 'normal') {
-          applyFilterEffects(ctx, x, y, photoWidth, photoHeight, activeFilter.id);
+          applyFilterEffects(ctx, x, y, photoWidth, photoHeight, activeFilter.id, imgSource, sx, sy, sw, sh);
         }
       }
     } else {

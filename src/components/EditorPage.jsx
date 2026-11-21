@@ -1376,7 +1376,7 @@ export default function EditorPage({
                     Filter Foto
                   </h3>
                   <p className="text-[10px] text-stone-500 font-medium truncate">
-                    31 preset warna vintage, cute, Y2K &amp; noir
+                    {FILTERS.length} preset warna vintage, cute, Y2K &amp; noir
                   </p>
                 </div>
               </div>

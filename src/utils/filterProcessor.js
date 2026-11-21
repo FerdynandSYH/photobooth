@@ -142,15 +142,299 @@ export function applyVerticalCurtain(ctx, x, y, width, height) {
 }
 
 /**
+ * Apply deterministic 90s analog dust specks and micro-scratches.
+ * Uses a coordinate-based seeded LCG generator so that particle positions
+ * remain perfectly stationary during strip drag/scale/rotate interactions (no flickering).
+ */
+export function applyAnalogDustAndScratches(ctx, x, y, width, height) {
+  ctx.save();
+  try {
+    // 1. Clip to the exact photo rectangle so no specks leak into the frame
+    ctx.beginPath();
+    ctx.rect(x, y, width, height);
+    ctx.clip();
+
+    // 2. Deterministic LCG seed based on slot coordinates and dimensions
+    let seed = Math.abs(Math.round((x + 19) * 1013 + (y + 31) * 2017 + width * 43 + height)) || 98765;
+    const lcg = () => {
+      seed = (seed * 1664525 + 1013904223) % 4294967296;
+      return seed / 4294967296;
+    };
+
+    // 3. Generate 28 to 42 organic dust particles
+    const totalSpecks = 28 + Math.floor(lcg() * 14);
+    const whiteSpecks = [];
+    const darkSpecks = [];
+
+    for (let i = 0; i < totalSpecks; i++) {
+      const px = x + lcg() * width;
+      const py = y + lcg() * height;
+
+      // Small organic radius (0.35px - 1.2px)
+      const rx = 0.35 + lcg() * 0.70;
+      const ry = 0.30 + lcg() * 0.60;
+      const rotation = lcg() * Math.PI;
+
+      // ~60% warm white specks, ~40% dark specks
+      if (lcg() > 0.40) {
+        whiteSpecks.push({ px, py, rx, ry, rotation });
+      } else {
+        darkSpecks.push({ px, py, rx, ry, rotation });
+      }
+    }
+
+    // Pass 1: Dark microscopic dust specks (multiply mode)
+    if (darkSpecks.length > 0) {
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = 'rgba(45, 35, 25, 0.25)';
+      ctx.beginPath();
+      for (let i = 0; i < darkSpecks.length; i++) {
+        const s = darkSpecks[i];
+        ctx.moveTo(s.px + s.rx, s.py);
+        ctx.ellipse(s.px, s.py, s.rx, s.ry, s.rotation, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
+
+    // Pass 2: Warm white-cream dust specks (screen mode)
+    if (whiteSpecks.length > 0) {
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = 'rgba(255, 250, 240, 0.45)';
+      ctx.beginPath();
+      for (let i = 0; i < whiteSpecks.length; i++) {
+        const s = whiteSpecks[i];
+        ctx.moveTo(s.px + s.rx, s.py);
+        ctx.ellipse(s.px, s.py, s.rx, s.ry, s.rotation, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
+
+    // Pass 3: 1 to 2 subtle hairline micro-scratches on peripheral edges
+    const scratchCount = 1 + Math.floor(lcg() * 2);
+    ctx.lineWidth = 0.8;
+    ctx.lineCap = 'round';
+
+    for (let s = 0; s < scratchCount; s++) {
+      const side = Math.floor(lcg() * 4);
+      let sx, sy, ex, ey;
+      const len = Math.max(14, Math.min(36, Math.round(Math.min(width, height) * (0.05 + lcg() * 0.05))));
+
+      if (side === 0) {
+        // Left peripheral margin
+        sx = x + lcg() * (width * 0.14);
+        sy = y + (0.15 + lcg() * 0.70) * height;
+        ex = sx + (lcg() - 0.5) * 8;
+        ey = sy + len;
+      } else if (side === 1) {
+        // Right peripheral margin
+        sx = x + width - lcg() * (width * 0.14);
+        sy = y + (0.15 + lcg() * 0.70) * height;
+        ex = sx + (lcg() - 0.5) * 8;
+        ey = sy + len;
+      } else if (side === 2) {
+        // Top peripheral margin
+        sx = x + (0.15 + lcg() * 0.70) * width;
+        sy = y + lcg() * (height * 0.12);
+        ex = sx + len;
+        ey = sy + (lcg() - 0.5) * 6;
+      } else {
+        // Bottom peripheral margin
+        sx = x + (0.15 + lcg() * 0.70) * width;
+        sy = y + height - lcg() * (height * 0.12);
+        ex = sx + len;
+        ey = sy + (lcg() - 0.5) * 6;
+      }
+
+      const cx = (sx + ex) / 2 + (lcg() - 0.5) * 4;
+      const cy = (sy + ey) / 2 + (lcg() - 0.5) * 4;
+
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.quadraticCurveTo(cx, cy, ex, ey);
+
+      if (s === 0) {
+        ctx.globalCompositeOperation = 'screen';
+        ctx.strokeStyle = 'rgba(255, 250, 240, 0.32)';
+      } else {
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.strokeStyle = 'rgba(45, 35, 25, 0.20)';
+      }
+      ctx.stroke();
+    }
+  } catch (e) {
+    console.warn('Dust and scratches draw error:', e);
+  } finally {
+    ctx.restore();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1.0;
+  }
+}
+
+/**
  * Safe, cross-browser color grading engine using mathematically calibrated canvas blend modes.
  * Completely immune to ctx.filter Safari WebKit bugs and guaranteed 100% state-isolated.
  */
-export function applyFilterEffects(ctx, x, y, width, height, filterId) {
+export function applyFilterEffects(ctx, x, y, width, height, filterId, imgSource = null, sx = 0, sy = 0, sw = 0, sh = 0) {
   if (!filterId || filterId === 'normal') return;
 
   ctx.save();
   try {
     switch (filterId) {
+      // ==========================================
+      // PRESET OPTIK: Soft Analog Film (Dreamy Halation & Orton Mist)
+      // ==========================================
+      case 'soft-analog-film': {
+        // 1. Dreamy Halation / Lens Diffusion Mist (Orton Bloom)
+        // Cross-Browser safe: offscreen bilinear downscale-upscale diffusion (1/14 scale)
+        if (imgSource && sw > 0 && sh > 0) {
+          try {
+            const scaleDown = 14;
+            const bloomW = Math.max(16, Math.round(width / scaleDown));
+            const bloomH = Math.max(16, Math.round(height / scaleDown));
+
+            const bloomCanvas = document.createElement('canvas');
+            bloomCanvas.width = bloomW;
+            bloomCanvas.height = bloomH;
+            const bCtx = bloomCanvas.getContext('2d');
+            bCtx.imageSmoothingEnabled = true;
+            bCtx.imageSmoothingQuality = 'high';
+
+            // Tahap 1: Gambar foto ke kanvas mini beresolusi rendah (smooth bilinear blur)
+            bCtx.drawImage(imgSource, sx, sy, sw, sh, 0, 0, bloomW, bloomH);
+
+            // Tahap 2: Isolasi & perkuat highlight pada layer blur
+            // - Multiply ke dirinya sendiri untuk menekan area gelap/shadow agar kabut tidak keruh
+            bCtx.globalCompositeOperation = 'multiply';
+            bCtx.globalAlpha = 0.40;
+            bCtx.drawImage(bloomCanvas, 0, 0);
+
+            // - Warm creamy/golden glow tint pada pendaran highlight
+            bCtx.globalCompositeOperation = 'screen';
+            bCtx.globalAlpha = 0.35;
+            bCtx.fillStyle = 'rgb(255, 240, 224)';
+            bCtx.fillRect(0, 0, bloomW, bloomH);
+
+            // Tahap 3: Blending kabut dreamy mist kembali ke kanvas utama
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            // Pass A: Halation penyebaran kabut lembut menyeluruh (screen 0.32)
+            ctx.globalCompositeOperation = 'screen';
+            ctx.globalAlpha = 0.32;
+            ctx.drawImage(bloomCanvas, 0, 0, bloomW, bloomH, x, y, width, height);
+
+            // Pass B: Pendaran khusus highlight/kulit/pakaian terang (lighten 0.14)
+            ctx.globalCompositeOperation = 'lighten';
+            ctx.globalAlpha = 0.14;
+            ctx.drawImage(bloomCanvas, 0, 0, bloomW, bloomH, x, y, width, height);
+          } catch (e) {
+            ctx.globalCompositeOperation = 'screen';
+            ctx.fillStyle = 'rgba(255, 245, 235, 0.30)';
+            ctx.fillRect(x, y, width, height);
+          }
+        } else {
+          ctx.globalCompositeOperation = 'screen';
+          ctx.fillStyle = 'rgba(255, 245, 235, 0.30)';
+          ctx.fillRect(x, y, width, height);
+        }
+
+        // 2. Lifted Shadows (Black point lifted to faded warm dark brown rgb(42, 35, 30))
+        ctx.globalCompositeOperation = 'screen';
+        ctx.fillStyle = 'rgb(42, 35, 30)';
+        ctx.globalAlpha = 0.20;
+        ctx.fillRect(x, y, width, height);
+
+        // 3. Creamy Highlights (rgb(245, 240, 228))
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.fillStyle = 'rgb(245, 240, 228)';
+        ctx.globalAlpha = 0.24;
+        ctx.fillRect(x, y, width, height);
+
+        // 4. Subtle mint-green tint in midtones (rgba(195, 215, 200, 0.14) with soft-light)
+        ctx.globalCompositeOperation = 'soft-light';
+        ctx.fillStyle = 'rgba(195, 215, 200, 0.30)';
+        ctx.fillRect(x, y, width, height);
+
+        // 5. Film Emulsion Softness (~15% desaturasi & penurunan kontras lembut)
+        ctx.globalCompositeOperation = 'color';
+        ctx.fillStyle = '#e4e0d7';
+        ctx.globalAlpha = 0.14;
+        ctx.fillRect(x, y, width, height);
+
+        // 6. Finishing Texture: Fine organic film grain (1-2px, opacity 0.12)
+        applyFilmGrain(ctx, x, y, width, height, 0.12);
+
+        // 7. Analog Dust Specks & Micro-Scratches (Autentik klise film 90-an)
+        applyAnalogDustAndScratches(ctx, x, y, width, height);
+
+        // 8. Subtle film edge light-leak on right edge (rgba(255, 110, 40, 0.35))
+        const leakWidth = Math.max(20, Math.round(width * 0.22));
+        const leakGrad = ctx.createLinearGradient(x + width - leakWidth, 0, x + width, 0);
+        leakGrad.addColorStop(0.0, 'rgba(255, 110, 40, 0.0)');
+        leakGrad.addColorStop(0.55, 'rgba(255, 110, 40, 0.14)');
+        leakGrad.addColorStop(1.0, 'rgba(255, 120, 50, 0.35)');
+
+        ctx.globalCompositeOperation = 'screen';
+        ctx.fillStyle = leakGrad;
+        ctx.fillRect(x + width - leakWidth, y, leakWidth, height);
+        break;
+      }
+
+      // ==========================================
+      // PRESET BARU OPTIK 2: Silver Booth B&W (Warm Silver Gelatin Monochrome)
+      // ==========================================
+      case 'silver-booth-bw': {
+        // 1. Warm Monochrome Conversion (Luminance weighting)
+        ctx.globalCompositeOperation = 'color';
+        ctx.fillStyle = '#000000';
+        ctx.globalAlpha = 1.0;
+        ctx.fillRect(x, y, width, height);
+
+        // 2. Warm Silver Gelatin Split-Toning (#efe6d8 in highlights & midtones)
+        ctx.globalCompositeOperation = 'soft-light';
+        ctx.fillStyle = '#efe6d8';
+        ctx.globalAlpha = 0.42;
+        ctx.fillRect(x, y, width, height);
+
+        // 3. Direct Flash Midtone Contrast boost (~15%) without crushing blacks
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.fillStyle = '#262626';
+        ctx.globalAlpha = 0.30;
+        ctx.fillRect(x, y, width, height);
+
+        // Lifted deep shadows to prevent crushed black point
+        ctx.globalCompositeOperation = 'screen';
+        ctx.fillStyle = '#1c1917';
+        ctx.globalAlpha = 0.10;
+        ctx.fillRect(x, y, width, height);
+
+        // 4. Subtle Radial Vignette (rgba(20, 16, 12, 0.35) at corners, fully clear at face center)
+        const centerX = x + width / 2;
+        const centerY = y + height / 2;
+        const maxRadius = Math.sqrt((width / 2) ** 2 + (height / 2) ** 2);
+        const vigGrad = ctx.createRadialGradient(
+          centerX, centerY, width * 0.22,
+          centerX, centerY, maxRadius
+        );
+        vigGrad.addColorStop(0.0, 'rgba(0, 0, 0, 0.0)');
+        vigGrad.addColorStop(0.65, 'rgba(20, 16, 12, 0.12)');
+        vigGrad.addColorStop(1.0, 'rgba(20, 16, 12, 0.35)');
+
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = vigGrad;
+        ctx.fillRect(x, y, width, height);
+
+        // 5. Subtle vintage paper grain (opacity 0.07)
+        applyFilmGrain(ctx, x, y, width, height, 0.07);
+
+        // 6. Thin vintage analog film border / edge line (2px - 4px) in faded dark tone
+        const edgeInset = Math.max(2, Math.min(4, Math.round(Math.min(width, height) * 0.008)));
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.strokeStyle = 'rgba(20, 16, 12, 0.40)';
+        ctx.lineWidth = edgeInset * 2;
+        ctx.strokeRect(x, y, width, height);
+        break;
+      }
       // ==========================================
       // PRESET BARU 1: Rosy Coquette (Cute Cewek)
       // ==========================================

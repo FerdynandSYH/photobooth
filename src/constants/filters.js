@@ -78,7 +78,35 @@ export const FILTERS = [
     swatchColors: ['#451a03', '#b45309', '#fef3c7'],
   },
 
-  // 4. Retro & Vintage Analog Era (Lengkap 13 Preset Original)
+  // 4. Preset Baru Tambahan: Soft Analog Film & Silver Booth B&W
+  {
+    id: 'soft-analog-film',
+    name: 'Soft Analog Film',
+    category: 'retro',
+    categories: ['retro', 'cute', 'all'],
+    badge: '90s Dreamy Film',
+    description: 'Replikasi foto film analog 90s berkabut lembut (dreamy mist & halation) dengan tekstur organic grain, partikel debu klise, lifted shadows cokelat pudar, dan warm-mint tone',
+    filterValue: 'brightness(106%) contrast(90%) saturate(88%) sepia(12%)',
+    hasGrain: true,
+    hasVignette: false,
+    previewGradient: 'linear-gradient(135deg, #2a231e 0%, #c3d7c8 50%, #f5f0e4 100%)',
+    swatchColors: ['#2a231e', '#c3d7c8', '#f5f0e4'],
+  },
+  {
+    id: 'silver-booth-bw',
+    name: 'Silver Booth B&W',
+    category: 'bw',
+    categories: ['bw', 'retro', 'all'],
+    badge: 'Silver Gelatin',
+    description: 'Hitam-putih cetakan photobooth perak vintage (silver gelatin) dengan split-tone krem hangat, kontras flash terarah, vignette lembut, dan analog border',
+    filterValue: 'grayscale(100%) contrast(118%) brightness(102%) sepia(12%)',
+    hasGrain: true,
+    hasVignette: true,
+    previewGradient: 'linear-gradient(135deg, #14100c 0%, #78716c 50%, #efe6d8 100%)',
+    swatchColors: ['#14100c', '#efe6d8', '#ffffff'],
+  },
+
+  // 5. Retro & Vintage Analog Era (Lengkap 13 Preset Original)
   {
     id: 'night-flash-sepia',
     name: 'Night Flash Khaki Sepia',
