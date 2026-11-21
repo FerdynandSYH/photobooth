@@ -22,15 +22,39 @@ export function useCamera() {
     }
   }, []);
 
-  // Stop current stream tracks
+  // Stop current stream tracks cleanly to turn off hardware indicator and avoid leaks
   const stopStream = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => {
-        track.stop();
-      });
+      try {
+        const tracks = streamRef.current.getTracks();
+        tracks.forEach(track => {
+          try {
+            track.stop();
+          } catch (e) {
+            console.warn('Track stop error:', e);
+          }
+        });
+      } catch (e) {
+        console.warn('Stream tracks access error:', e);
+      }
       streamRef.current = null;
     }
+
     if (videoRef.current) {
+      const activeSrc = videoRef.current.srcObject;
+      if (activeSrc && typeof activeSrc.getTracks === 'function') {
+        try {
+          activeSrc.getTracks().forEach(track => {
+            try {
+              track.stop();
+            } catch (e) {
+              console.warn('Video srcObject track stop error:', e);
+            }
+          });
+        } catch (e) {
+          console.warn('Video srcObject tracks access error:', e);
+        }
+      }
       videoRef.current.srcObject = null;
     }
   }, []);
@@ -57,7 +81,25 @@ export function useCamera() {
         audio: false,
       };
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (constraintErr) {
+        // Fallback jika device gagal memenuhi constraint resolusi/facingMode spesifik (OverconstrainedError)
+        if (
+          constraintErr.name === 'OverconstrainedError' ||
+          constraintErr.name === 'ConstraintNotSatisfiedError'
+        ) {
+          console.warn('OverconstrainedError encountered, retrying with basic video constraint:', constraintErr);
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
+        } else {
+          throw constraintErr;
+        }
+      }
+
       streamRef.current = stream;
 
       if (videoRef.current) {
@@ -73,13 +115,22 @@ export function useCamera() {
       console.error('Camera access error:', err);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         setPermissionStatus('denied');
-        setErrorMessage('Akses kamera ditolak oleh browser. Silakan izinkan izin kamera di pengaturan browser atau ikon gembok pada URL bar.');
+        setErrorMessage('Akses kamera ditolak oleh browser atau pengaturan sistem. Silakan izinkan akses kamera di pengaturan browser atau ikon gembok pada URL bar.');
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
         setPermissionStatus('error');
-        setErrorMessage('Perangkat kamera tidak ditemukan. Pastikan webcam/kamera terpasang dengan baik.');
+        setErrorMessage('Perangkat kamera tidak ditemukan. Pastikan webcam/kamera terpasang dan terhubung dengan baik ke perangkat.');
       } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
         setPermissionStatus('error');
-        setErrorMessage('Kamera sedang digunakan oleh aplikasi lain (Zoom, Google Meet, dll). Tutup aplikasi tersebut dan coba lagi.');
+        setErrorMessage('Kamera sedang digunakan oleh aplikasi lain (seperti Zoom, Google Meet, Teams, atau tab lain). Tutup aplikasi tersebut dan coba lagi.');
+      } else if (err.name === 'OverconstrainedError' || err.name === 'ConstraintNotSatisfiedError') {
+        setPermissionStatus('error');
+        setErrorMessage('Kamera perangkat Anda tidak mendukung parameter resolusi atau orientasi yang diminta.');
+      } else if (err.name === 'SecurityError') {
+        setPermissionStatus('error');
+        setErrorMessage('Akses kamera diblokir karena protokol tidak aman. Pastikan aplikasi dijalankan melalui HTTPS atau localhost.');
+      } else if (err.name === 'AbortError') {
+        setPermissionStatus('error');
+        setErrorMessage('Permintaan akses kamera dibatalkan oleh perangkat keras atau sistem operasi.');
       } else {
         setPermissionStatus('error');
         setErrorMessage(`Gagal mengakses kamera: ${err.message || 'Terjadi kesalahan tidak terduga'}`);

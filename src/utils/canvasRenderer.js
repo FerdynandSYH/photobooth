@@ -30,23 +30,86 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-// Background image cache
+// Background image cache (URL -> HTMLImageElement / Promise)
 const bgImageCache = new Map();
 
-function loadBackgroundImage(url) {
+// Photo image cache (DataURL/Key -> HTMLImageElement / Promise)
+const photoImageCache = new Map();
+
+// Offscreen bitmap cache for ultra-smooth 60+ FPS manipulation
+const stripBitmapCache = new Map();
+
+export function loadBackgroundImage(url) {
+  if (!url) return Promise.resolve(null);
   if (bgImageCache.has(url)) {
-    return Promise.resolve(bgImageCache.get(url));
+    const cached = bgImageCache.get(url);
+    if (cached instanceof Promise) return cached;
+    return Promise.resolve(cached);
   }
-  return new Promise((resolve) => {
+  const promise = new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       bgImageCache.set(url, img);
       resolve(img);
     };
-    img.onerror = () => resolve(null);
+    img.onerror = () => {
+      bgImageCache.delete(url);
+      resolve(null);
+    };
     img.src = url;
   });
+  bgImageCache.set(url, promise);
+  return promise;
+}
+
+export function loadPhotoImage(photo) {
+  if (!photo) return Promise.resolve(null);
+
+  // Jika objek foto sudah memiliki referensi HTMLImageElement yang telah ter-decode
+  if (photo.image instanceof HTMLImageElement && photo.image.complete && photo.image.naturalWidth > 0) {
+    return Promise.resolve(photo.image);
+  }
+
+  // Jika objek foto membawa canvas siap render (HTMLCanvasElement)
+  if (photo.canvas instanceof HTMLCanvasElement) {
+    return Promise.resolve(photo.canvas);
+  }
+
+  const key = photo.dataUrl || photo.id || photo.capturedAt;
+  if (!key) return Promise.resolve(null);
+
+  if (photoImageCache.has(key)) {
+    const cached = photoImageCache.get(key);
+    if (cached instanceof Promise) return cached;
+    return Promise.resolve(cached);
+  }
+
+  const promise = new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        photo.image = img;
+      } catch (e) { }
+      photoImageCache.set(key, img);
+      resolve(img);
+    };
+    img.onerror = () => {
+      photoImageCache.delete(key);
+      resolve(null);
+    };
+    img.src = photo.dataUrl;
+  });
+
+  photoImageCache.set(key, promise);
+  return promise;
+}
+
+export function clearCanvasCaches() {
+  bgImageCache.clear();
+  photoImageCache.clear();
+  stripBitmapCache.clear();
 }
 
 /**
@@ -147,9 +210,6 @@ function drawFilmStripMarkings(ctx, stripX, stripY, stripWidth, stripHeight, row
 
   ctx.restore();
 }
-
-// Offscreen bitmap cache for ultra-smooth 60+ FPS manipulation
-const stripBitmapCache = new Map();
 
 function getStripCacheKey({
   photos,
@@ -254,20 +314,11 @@ async function compileStripBitmap({
     ctx.clip();
 
     if (photo && (photo.canvas || photo.dataUrl || photo.image)) {
-      let imgSource = photo.canvas;
-      if (!imgSource) {
-        imgSource = await new Promise((resolve) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => resolve(img);
-          img.onerror = () => resolve(null);
-          img.src = photo.dataUrl;
-        });
-      }
+      const imgSource = await loadPhotoImage(photo);
 
       if (imgSource) {
-        const srcW = imgSource.width || 640;
-        const srcH = imgSource.height || 480;
+        const srcW = imgSource.width || imgSource.naturalWidth || 640;
+        const srcH = imgSource.height || imgSource.naturalHeight || 480;
         const targetAspect = photoWidth / photoHeight;
         const srcAspect = srcW / srcH;
 
@@ -280,17 +331,12 @@ async function compileStripBitmap({
           sy = (srcH - sh) / 2;
         }
 
-        const activeFilter = filterConfig || photo.filterConfig;
-        if (activeFilter && activeFilter.filterValue && activeFilter.filterValue !== 'none') {
-          try {
-            ctx.filter = activeFilter.filterValue;
-          } catch (e) {}
-        }
-
+        // 1. Gambar foto asli tanpa ketergantungan ctx.filter string (menjamin konsistensi 100% di Safari WebKit & Chrome)
         ctx.drawImage(imgSource, sx, sy, sw, sh, x, y, photoWidth, photoHeight);
-        ctx.filter = 'none';
 
-        if (activeFilter && activeFilter.id !== 'normal') {
+        // 2. Terapkan color grading & blend modes terkalibrasi secara presisi dan terisolasi
+        const activeFilter = filterConfig || photo.filterConfig;
+        if (activeFilter && activeFilter.id && activeFilter.id !== 'normal') {
           applyFilterEffects(ctx, x, y, photoWidth, photoHeight, activeFilter.id);
         }
       }
@@ -597,7 +643,7 @@ export async function renderPhotoboothCanvas({
   if (document.fonts) {
     try {
       await document.fonts.ready;
-    } catch (e) {}
+    } catch (e) { }
   }
 
   const scaleMultiplier = Math.max(1, exportScale || 1);
@@ -634,7 +680,7 @@ export async function renderPhotoboothCanvas({
     // Calculate strip placement coordinates
     const baseCenterX = Math.round((totalWidth - stripWidth) / 2);
     const baseCenterY = Math.round((totalHeight - stripHeight) / 2);
-    
+
     // Max displacement limits (allows intuitive dragging across the canvas)
     const maxShiftX = Math.round(Math.max(160 * scaleMultiplier, totalWidth * 0.38));
     const maxShiftY = Math.round(Math.max(160 * scaleMultiplier, totalHeight * 0.32));

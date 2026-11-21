@@ -90,20 +90,31 @@ export async function saveOrSharePhoto({
 
   // 2. Direct Blob URL Download (Standard Desktop & Fallback)
   const blobUrl = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = blobUrl;
-  link.download = filename;
-  link.rel = 'noopener';
-  document.body.appendChild(link);
-  link.click();
+  try {
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
 
-  // Safely cleanup URL after delay
-  setTimeout(() => {
-    if (document.body.contains(link)) {
-      document.body.removeChild(link);
-    }
-    URL.revokeObjectURL(blobUrl);
-  }, 60000);
+    // Segera bersihkan node link dan cabut (revoke) blob object URL untuk mencegah kebocoran memori (RAM)
+    setTimeout(() => {
+      try {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+      } catch (e) {}
+      try {
+        URL.revokeObjectURL(blobUrl);
+      } catch (e) {}
+    }, 1500);
+  } catch (err) {
+    try {
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {}
+    throw err;
+  }
 
   return { success: true, method: 'download' };
 }

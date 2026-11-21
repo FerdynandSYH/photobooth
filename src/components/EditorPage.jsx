@@ -330,11 +330,14 @@ export default function EditorPage({
   const [activeInteractionMode, setActiveInteractionMode] = useState(null);
   const transformRef = useRef(null);
   const rafRef = useRef(null);
+  const renderRafRef = useRef(null);
+  const renderSeqRef = useRef(0);
   const pendingUpdateRef = useRef(null);
 
   useEffect(() => {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (renderRafRef.current) cancelAnimationFrame(renderRafRef.current);
     };
   }, []);
 
@@ -352,7 +355,7 @@ export default function EditorPage({
     };
     try {
       e.currentTarget.setPointerCapture?.(e.pointerId);
-    } catch (err) {}
+    } catch (err) { }
   };
 
   // 2. Tarik sudut untuk membesar / mengecilkan (Scale)
@@ -375,7 +378,7 @@ export default function EditorPage({
     };
     try {
       e.currentTarget.setPointerCapture?.(e.pointerId);
-    } catch (err) {}
+    } catch (err) { }
   };
 
   // 3. Tarik knob atas untuk memutar (Rotate)
@@ -397,7 +400,7 @@ export default function EditorPage({
     };
     try {
       e.currentTarget.setPointerCapture?.(e.pointerId);
-    } catch (err) {}
+    } catch (err) { }
   };
 
   // Listener gerakan pointer global selama manipulasi berlangsung (dioptimasi via requestAnimationFrame untuk 60+ FPS mulus)
@@ -469,7 +472,7 @@ export default function EditorPage({
       setActiveInteractionMode(null);
       try {
         e.currentTarget.releasePointerCapture?.(e.pointerId);
-      } catch (err) {}
+      } catch (err) { }
     }
   };
 
@@ -622,8 +625,8 @@ export default function EditorPage({
   const [filterCategory, setFilterCategory] = useState('all');
   const displayedFilters = useMemo(() => {
     if (filterCategory === 'all') return FILTERS;
-    return FILTERS.filter(f => 
-      f.category === filterCategory || 
+    return FILTERS.filter(f =>
+      f.category === filterCategory ||
       (Array.isArray(f.categories) && f.categories.includes(filterCategory)) ||
       (filterCategory === 'retro' && f.id.includes('retro'))
     );
@@ -686,32 +689,54 @@ export default function EditorPage({
   };
 
   // Re-render canvas whenever layout, frame, background, bgRatio, filter, text, fontSize, stripScale, stripPosition, duplication, scales, or date changes
+  // Dioptimasi menggunakan requestAnimationFrame untuk menjaga performa mulus 60fps saat drag/transformasi
   useEffect(() => {
     if (!canvasRef.current) return;
-    renderPhotoboothCanvas({
-      photos,
-      layout,
-      frame: selectedFrame,
-      background: selectedBackground,
-      bgAspectRatio: selectedBgRatio,
-      filterConfig: selectedFilter,
-      footerText,
-      fontSize,
-      stripScale,
-      stripPosition,
-      stripRotation,
-      strip1Scale,
-      showDate,
-      isDuplicateEnabled,
-      strip2Photos: effectiveStrip2Photos,
-      strip2Position,
-      strip2Rotation,
-      strip2Scale,
-      topStrip,
-      targetCanvas: canvasRef.current,
-    }).then(() => {
-      updateCanvasBounds();
+
+    if (renderRafRef.current) {
+      cancelAnimationFrame(renderRafRef.current);
+    }
+
+    renderRafRef.current = requestAnimationFrame(() => {
+      renderRafRef.current = null;
+      const currentSeq = ++renderSeqRef.current;
+
+      renderPhotoboothCanvas({
+        photos,
+        layout,
+        frame: selectedFrame,
+        background: selectedBackground,
+        bgAspectRatio: selectedBgRatio,
+        filterConfig: selectedFilter,
+        footerText,
+        fontSize,
+        stripScale,
+        stripPosition,
+        stripRotation,
+        strip1Scale,
+        showDate,
+        isDuplicateEnabled,
+        strip2Photos: effectiveStrip2Photos,
+        strip2Position,
+        strip2Rotation,
+        strip2Scale,
+        topStrip,
+        targetCanvas: canvasRef.current,
+      }).then(() => {
+        if (currentSeq === renderSeqRef.current) {
+          updateCanvasBounds();
+        }
+      }).catch(err => {
+        console.warn('Canvas render error:', err);
+      });
     });
+
+    return () => {
+      if (renderRafRef.current) {
+        cancelAnimationFrame(renderRafRef.current);
+        renderRafRef.current = null;
+      }
+    };
   }, [
     photos,
     layout,
@@ -815,7 +840,7 @@ export default function EditorPage({
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-5 animate-fade-in">
-      
+
       {/* Header Bar with Back Button */}
       <div className="flex items-center justify-between border-b border-[#E7E2DA] pb-4">
         <button
@@ -834,7 +859,7 @@ export default function EditorPage({
 
       {/* Main 2-Column Editor Layout (Stacked on Mobile/Tablet, 2-Column on Desktop) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-        
+
         {/* Kolom Kiri: Canvas Display Interaktif Langsung (Geser, Putar, Membesar/Mengecilkan) */}
         <div
           id="canvas-preview-section"
@@ -846,7 +871,7 @@ export default function EditorPage({
           }}
           className="lg:col-span-6 flex flex-col items-center justify-center bg-white border border-[#E7E2DA] rounded-3xl p-3 sm:p-5 shadow-sm static lg:sticky lg:top-24"
         >
-          
+
           {/* 1. Jika canAdjust belum aktif: Tampilkan Banner Ajak Coba Fitur Geser yang Menarik & Lucu */}
           {!canAdjust && (
             <div className="w-full mb-3 p-3 sm:p-3.5 bg-gradient-to-r from-amber-50/90 via-[#FAF7F2] to-orange-50/70 border border-amber-200/80 rounded-2xl shadow-xs">
@@ -937,18 +962,16 @@ export default function EditorPage({
                         setActiveStrip('strip1');
                         setIsSelected(true);
                       }}
-                      className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                        activeStrip === 'strip1'
-                          ? 'bg-stone-900 text-white shadow-2xs'
-                          : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-                      }`}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${activeStrip === 'strip1'
+                        ? 'bg-stone-900 text-white shadow-2xs'
+                        : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                        }`}
                     >
                       <span>Strip 1</span>
-                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${
-                        topStrip === 'strip1'
-                          ? 'bg-amber-300 text-stone-900'
-                          : 'bg-stone-200 text-stone-600'
-                      }`}>
+                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${topStrip === 'strip1'
+                        ? 'bg-amber-300 text-stone-900'
+                        : 'bg-stone-200 text-stone-600'
+                        }`}>
                         {topStrip === 'strip1' ? 'Depan' : 'Belakang'}
                       </span>
                     </button>
@@ -959,18 +982,16 @@ export default function EditorPage({
                         setActiveStrip('strip2');
                         setIsSelected(true);
                       }}
-                      className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                        activeStrip === 'strip2'
-                          ? 'bg-stone-900 text-white shadow-2xs'
-                          : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-                      }`}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${activeStrip === 'strip2'
+                        ? 'bg-stone-900 text-white shadow-2xs'
+                        : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                        }`}
                     >
                       <span>Strip 2</span>
-                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${
-                        topStrip === 'strip2'
-                          ? 'bg-amber-300 text-stone-900'
-                          : 'bg-stone-200 text-stone-600'
-                      }`}>
+                      <span className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${topStrip === 'strip2'
+                        ? 'bg-amber-300 text-stone-900'
+                        : 'bg-stone-200 text-stone-600'
+                        }`}>
                         {topStrip === 'strip2' ? 'Depan' : 'Belakang'}
                       </span>
                     </button>
@@ -1114,9 +1135,8 @@ export default function EditorPage({
             onPointerMove={canAdjust ? handleTransformPointerMove : undefined}
             onPointerUp={canAdjust ? handleTransformPointerUp : undefined}
             onPointerCancel={canAdjust ? handleTransformPointerUp : undefined}
-            className={`relative w-full flex justify-center items-center py-2 select-none overflow-visible ${
-              canAdjust ? 'touch-none' : ''
-            }`}
+            className={`relative w-full flex justify-center items-center py-2 select-none overflow-visible ${canAdjust ? 'touch-none' : ''
+              }`}
             style={{ touchAction: canAdjust ? 'none' : 'auto' }}
           >
             <div
@@ -1183,13 +1203,12 @@ export default function EditorPage({
                       setShowDragTip(false);
                       handleBodyPointerDown(e);
                     }}
-                    className={`w-full h-full rounded-xl transition-all ${
-                      isSelected
-                        ? (activeInteractionMode === 'move'
-                            ? 'border-2 border-dashed border-stone-900 bg-stone-900/15 cursor-grabbing ring-2 ring-stone-900/20'
-                            : 'border-2 border-dashed border-stone-800/80 bg-stone-900/5 hover:bg-stone-900/10 cursor-move')
-                        : 'border-2 border-transparent hover:border-dashed hover:border-stone-400/50 cursor-pointer'
-                    }`}
+                    className={`w-full h-full rounded-xl transition-all ${isSelected
+                      ? (activeInteractionMode === 'move'
+                        ? 'border-2 border-dashed border-stone-900 bg-stone-900/15 cursor-grabbing ring-2 ring-stone-900/20'
+                        : 'border-2 border-dashed border-stone-800/80 bg-stone-900/5 hover:bg-stone-900/10 cursor-move')
+                      : 'border-2 border-transparent hover:border-dashed hover:border-stone-400/50 cursor-pointer'
+                      }`}
                     title={isSelected ? "Tahan dan geser untuk memindahkan posisi foto" : "Ketuk foto untuk mengaktifkan pengaturan"}
                   />
 
@@ -1316,7 +1335,7 @@ export default function EditorPage({
 
         {/* Kolom Kanan: Panel Kontrol Editor Berformat Dropdown (Collapsible Accordion) */}
         <div className="lg:col-span-6 space-y-3.5">
-          
+
           {/* Quick Header Controls: Buka Semua / Tutup Semua */}
           <div className="flex items-center justify-between px-1">
             <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500">
@@ -1357,7 +1376,7 @@ export default function EditorPage({
                     Filter Foto
                   </h3>
                   <p className="text-[10px] text-stone-500 font-medium truncate">
-                    18 efek warna vintage, noir &amp; warm
+                    31 preset warna vintage, cute, Y2K &amp; noir
                   </p>
                 </div>
               </div>
@@ -1382,11 +1401,10 @@ export default function EditorPage({
                     <button
                       key={cat.id}
                       onClick={() => setFilterCategory(cat.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                        filterCategory === cat.id
-                          ? 'bg-stone-900 text-white shadow-2xs'
-                          : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200'
-                      }`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${filterCategory === cat.id
+                        ? 'bg-stone-900 text-white shadow-2xs'
+                        : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200'
+                        }`}
                     >
                       {cat.name}
                     </button>
@@ -1401,16 +1419,24 @@ export default function EditorPage({
                       <button
                         key={f.id}
                         onClick={() => onSelectFilter(f)}
-                        className={`flex items-center gap-2 p-2 rounded-xl text-xs font-semibold border transition text-left cursor-pointer ${
-                          isSelected
-                            ? 'bg-stone-900 border-stone-900 text-white shadow-2xs ring-1 ring-stone-900/40'
-                            : 'bg-stone-50/80 border-stone-200 text-stone-700 hover:bg-stone-100 hover:border-stone-300'
-                        }`}
+                        className={`flex items-center gap-2 p-2 rounded-xl text-xs font-semibold border transition text-left cursor-pointer ${isSelected
+                          ? 'bg-stone-900 border-stone-900 text-white shadow-2xs ring-1 ring-stone-900/40'
+                          : 'bg-stone-50/80 border-stone-200 text-stone-700 hover:bg-stone-100 hover:border-stone-300'
+                          }`}
                       >
-                        <span
-                          className="w-4 h-4 rounded-md flex-shrink-0 border border-stone-300 shadow-2xs"
+                        {/* 3-Tone Swatch Box */}
+                        <div
+                          className="w-4 h-4 rounded-md flex-shrink-0 border border-stone-300 shadow-2xs overflow-hidden flex flex-col"
                           style={{ background: f.previewGradient }}
-                        />
+                        >
+                          {f.swatchColors && (
+                            <div className="w-full h-full flex">
+                              <span className="w-1/3 h-full" style={{ backgroundColor: f.swatchColors[0] }} />
+                              <span className="w-1/3 h-full" style={{ backgroundColor: f.swatchColors[1] }} />
+                              <span className="w-1/3 h-full" style={{ backgroundColor: f.swatchColors[2] }} />
+                            </div>
+                          )}
+                        </div>
                         <div className="min-w-0">
                           <p className={`truncate text-[11px] font-bold leading-tight ${isSelected ? 'text-white' : 'text-stone-800'}`}>
                             {f.name}
@@ -1459,11 +1485,10 @@ export default function EditorPage({
               </div>
 
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border truncate max-w-[120px] ${
-                  isDuplicateEnabled
-                    ? 'bg-stone-900 text-white border-stone-900'
-                    : 'bg-stone-100 text-stone-700 border-stone-200'
-                }`}>
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border truncate max-w-[120px] ${isDuplicateEnabled
+                  ? 'bg-stone-900 text-white border-stone-900'
+                  : 'bg-stone-100 text-stone-700 border-stone-200'
+                  }`}>
                   {isDuplicateEnabled ? '2 Strip Tumpuk' : '1 Strip Normal'}
                 </span>
                 {openSections.layoutDuplicate ? (
@@ -1476,7 +1501,7 @@ export default function EditorPage({
 
             {openSections.layoutDuplicate && (
               <div className="px-3.5 pb-3.5 sm:px-4 sm:pb-4 pt-1 space-y-3.5 border-t border-stone-100 animate-fade-in">
-                
+
                 {/* Tips Pose Estetik & Geser Foto */}
                 <div className="p-2.5 bg-gradient-to-r from-amber-50/90 via-stone-50 to-orange-50/80 rounded-xl border border-amber-200/80 text-[11px] text-amber-950 flex items-start gap-2 shadow-2xs">
                   <Sparkles className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
@@ -1500,14 +1525,12 @@ export default function EditorPage({
                   <button
                     type="button"
                     onClick={handleToggleDuplicate}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      isDuplicateEnabled ? 'bg-stone-900' : 'bg-stone-300'
-                    }`}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isDuplicateEnabled ? 'bg-stone-900' : 'bg-stone-300'
+                      }`}
                   >
                     <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        isDuplicateEnabled ? 'translate-x-5' : 'translate-x-0'
-                      }`}
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isDuplicateEnabled ? 'translate-x-5' : 'translate-x-0'
+                        }`}
                     />
                   </button>
                 </div>
@@ -1660,7 +1683,7 @@ export default function EditorPage({
 
             {openSections.background && (
               <div className="px-3.5 pb-3.5 sm:px-4 sm:pb-4 pt-1 space-y-4 border-t border-stone-100 animate-fade-in">
-                
+
                 {/* Tips Kanvas Luas & Geser Foto */}
                 <div className="p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-[11px] text-stone-700 flex items-start gap-2">
                   <Sparkles className="w-3.5 h-3.5 text-stone-600 flex-shrink-0 mt-0.5" />
@@ -1687,11 +1710,10 @@ export default function EditorPage({
                         key={cat.id}
                         type="button"
                         onClick={() => setBgCategory(cat.id)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                          bgCategory === cat.id
-                            ? 'bg-stone-900 text-white shadow-2xs'
-                            : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200'
-                        }`}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${bgCategory === cat.id
+                          ? 'bg-stone-900 text-white shadow-2xs'
+                          : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200'
+                          }`}
                       >
                         {cat.name}
                       </button>
@@ -1708,11 +1730,10 @@ export default function EditorPage({
                           type="button"
                           onClick={() => handleSelectBackground(bg)}
                           title={bg.name}
-                          className={`h-14 rounded-xl border transition-all flex flex-col items-center justify-between p-1.5 overflow-hidden relative group cursor-pointer ${
-                            isSelected
-                              ? 'ring-2 ring-stone-900 scale-105 border-transparent shadow-md'
-                              : 'border-stone-300 hover:scale-105 hover:border-stone-400'
-                          }`}
+                          className={`h-14 rounded-xl border transition-all flex flex-col items-center justify-between p-1.5 overflow-hidden relative group cursor-pointer ${isSelected
+                            ? 'ring-2 ring-stone-900 scale-105 border-transparent shadow-md'
+                            : 'border-stone-300 hover:scale-105 hover:border-stone-400'
+                            }`}
                           style={{ background: bg.cssBackground }}
                         >
                           {isSelected && (
@@ -1759,11 +1780,10 @@ export default function EditorPage({
                     <label className="text-[11px] font-bold uppercase tracking-wider text-stone-600 flex items-center gap-1.5">
                       <span>2. Rasio Kanvas Latar Belakang</span>
                     </label>
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${
-                      hasBackground
-                        ? 'text-stone-800 bg-stone-100 border-stone-200'
-                        : 'text-amber-800 bg-amber-50 border-amber-200'
-                    }`}>
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${hasBackground
+                      ? 'text-stone-800 bg-stone-100 border-stone-200'
+                      : 'text-amber-800 bg-amber-50 border-amber-200'
+                      }`}>
                       {hasBackground
                         ? (BACKGROUND_RATIOS.find(r => r.id === selectedBgRatio)?.name || selectedBgRatio)
                         : 'Pilih latar dahulu'}
@@ -1783,17 +1803,15 @@ export default function EditorPage({
                               ? ratio.description
                               : `Pilih motif latar terlebih dahulu untuk menggunakan rasio ${ratio.name}`
                           }
-                          className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border text-center transition-all cursor-pointer ${
-                            isSelected
-                              ? 'bg-stone-900 border-stone-900 text-white shadow-sm ring-1 ring-stone-900/30'
-                              : hasBackground
+                          className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border text-center transition-all cursor-pointer ${isSelected
+                            ? 'bg-stone-900 border-stone-900 text-white shadow-sm ring-1 ring-stone-900/30'
+                            : hasBackground
                               ? 'bg-stone-50/80 border-stone-200 text-stone-700 hover:border-stone-300 hover:bg-stone-100'
                               : 'bg-stone-50/60 border-stone-200/60 text-stone-400 hover:bg-amber-50/60 hover:border-amber-300 hover:text-amber-800'
-                          }`}
+                            }`}
                         >
-                          <div className={`h-6 flex items-center justify-center mb-1 transition ${
-                            isSelected ? 'text-stone-100' : hasBackground ? 'text-stone-600' : 'text-stone-400'
-                          }`}>
+                          <div className={`h-6 flex items-center justify-center mb-1 transition ${isSelected ? 'text-stone-100' : hasBackground ? 'text-stone-600' : 'text-stone-400'
+                            }`}>
                             {getRatioPreview(ratio.id)}
                           </div>
                           <span className={`text-[11px] font-bold leading-tight ${isSelected ? 'text-white' : hasBackground ? 'text-stone-800' : 'text-stone-500'}`}>
@@ -1831,11 +1849,10 @@ export default function EditorPage({
                             key={preset.label}
                             type="button"
                             onClick={() => onChangeStripScale?.(preset.scale)}
-                            className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
-                              stripScale === preset.scale
-                                ? 'bg-stone-900 text-white'
-                                : 'bg-stone-100 text-stone-600 hover:bg-stone-200 hover:text-stone-900'
-                            }`}
+                            className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${stripScale === preset.scale
+                              ? 'bg-stone-900 text-white'
+                              : 'bg-stone-100 text-stone-600 hover:bg-stone-200 hover:text-stone-900'
+                              }`}
                           >
                             {preset.label}
                           </button>
@@ -1903,11 +1920,10 @@ export default function EditorPage({
                     <button
                       key={cat.id}
                       onClick={() => setFrameCategory(cat.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
-                        frameCategory === cat.id
-                          ? 'bg-stone-900 text-white shadow-2xs'
-                          : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200'
-                      }`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${frameCategory === cat.id
+                        ? 'bg-stone-900 text-white shadow-2xs'
+                        : 'bg-stone-100 text-stone-600 hover:text-stone-900 hover:bg-stone-200'
+                        }`}
                     >
                       {cat.name}
                     </button>
@@ -1923,11 +1939,10 @@ export default function EditorPage({
                         key={f.id}
                         onClick={() => onSelectFrame(f)}
                         title={f.name}
-                        className={`p-2.5 rounded-xl border transition-all flex items-center gap-2 text-left cursor-pointer ${
-                          isSelected
-                            ? 'bg-stone-900 text-white border-stone-900 shadow-md ring-1 ring-stone-900/40'
-                            : 'bg-stone-50/80 border-stone-200 text-stone-700 hover:bg-stone-100 hover:border-stone-300'
-                        }`}
+                        className={`p-2.5 rounded-xl border transition-all flex items-center gap-2 text-left cursor-pointer ${isSelected
+                          ? 'bg-stone-900 text-white border-stone-900 shadow-md ring-1 ring-stone-900/40'
+                          : 'bg-stone-50/80 border-stone-200 text-stone-700 hover:bg-stone-100 hover:border-stone-300'
+                          }`}
                       >
                         <span
                           className="w-5 h-5 rounded-lg flex-shrink-0 border border-stone-400 shadow-2xs flex items-center justify-center"
@@ -1996,11 +2011,10 @@ export default function EditorPage({
                   <button
                     type="button"
                     onClick={onToggleShowDate}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition cursor-pointer ${
-                      showDate
-                        ? 'bg-stone-900 border-stone-900 text-white'
-                        : 'bg-stone-50 border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-100'
-                    }`}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition cursor-pointer ${showDate
+                      ? 'bg-stone-900 border-stone-900 text-white'
+                      : 'bg-stone-50 border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+                      }`}
                   >
                     <Calendar className="w-3.5 h-3.5" />
                     <span>Tampilkan Tanggal</span>
@@ -2037,11 +2051,10 @@ export default function EditorPage({
                           key={preset.label}
                           type="button"
                           onClick={() => onChangeFontSize?.(preset.size)}
-                          className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${
-                            fontSize === preset.size
-                              ? 'bg-stone-900 text-white'
-                              : 'bg-stone-100 text-stone-600 hover:bg-stone-200 hover:text-stone-900'
-                          }`}
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition cursor-pointer ${fontSize === preset.size
+                            ? 'bg-stone-900 text-white'
+                            : 'bg-stone-100 text-stone-600 hover:bg-stone-200 hover:text-stone-900'
+                            }`}
                         >
                           {preset.label}
                         </button>

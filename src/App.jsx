@@ -54,6 +54,35 @@ export default function App() {
   const [strip2Rotation, setStrip2Rotation] = useState(4);
   const [topStrip, setTopStrip] = useState('strip2');
 
+  // State Foto & Sesi
+  const currentLayout = useMemo(() => {
+    return LAYOUTS[selectedLayoutId] || LAYOUTS['strip-3'];
+  }, [selectedLayoutId]);
+
+  const [photos, setPhotos] = useState(() => new Array(LAYOUTS['strip-3'].photoCount).fill(null));
+  const [isSessionRunning, setIsSessionRunning] = useState(false);
+  const [currentRetakeIndex, setCurrentRetakeIndex] = useState(null);
+  const [countdown, setCountdown] = useState(null);
+  const [isFlashing, setIsFlashing] = useState(false);
+  const [sessionProgress, setSessionProgress] = useState({ current: 0, total: 0, active: false });
+
+  // Proteksi Kehilangan Data: Berikan konfirmasi dialog browser jika user merefresh atau menutup tab saat ada foto yang telah diambil
+  useEffect(() => {
+    const hasCapturedPhotos = Boolean(photos && photos.some(p => p !== null && p !== undefined));
+    if (!hasCapturedPhotos && !isSessionRunning) return;
+
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [photos, isSessionRunning]);
+
   // Fungsi untuk me-reset semua pengaturan editing ke default
   const resetEditorToDefault = useCallback(() => {
     setSelectedFrame(DEFAULT_FRAME);
@@ -73,18 +102,6 @@ export default function App() {
     setStrip2Rotation(4);
     setTopStrip('strip2');
   }, []);
-
-  // State Foto & Sesi
-  const currentLayout = useMemo(() => {
-    return LAYOUTS[selectedLayoutId] || LAYOUTS['strip-3'];
-  }, [selectedLayoutId]);
-
-  const [photos, setPhotos] = useState(() => new Array(LAYOUTS['strip-3'].photoCount).fill(null));
-  const [isSessionRunning, setIsSessionRunning] = useState(false);
-  const [currentRetakeIndex, setCurrentRetakeIndex] = useState(null);
-  const [countdown, setCountdown] = useState(null);
-  const [isFlashing, setIsFlashing] = useState(false);
-  const [sessionProgress, setSessionProgress] = useState({ current: 0, total: 0, active: false });
 
   // Sinkronisasi slot saat layout diubah (KOSONGKAN FOTO SEPENUHNYA SESUAI PERMINTAAN USER)
   const handleSelectLayout = (layoutId) => {
@@ -243,6 +260,7 @@ export default function App() {
 
   // Beralih ke halaman animasi cetak photobooth
   const handleDownloadAndPrint = (data) => {
+    camera.stopStream();
     audio.unlockAudio();
     if (typeof data === 'string') {
       setPrintedImageUrl(data);
@@ -420,7 +438,10 @@ export default function App() {
             allSlotsFilled={allSlotsFilled}
             onStartSession={handleStartSession}
             onRetakeSlot={handleRetakeSlot}
-            onGoToEditor={() => setCurrentStep('editor')}
+            onGoToEditor={() => {
+              camera.stopStream();
+              setCurrentStep('editor');
+            }}
             onBackToGrid={handleBackToGrid}
             onBackToHome={handleBackToHome}
           />
@@ -467,6 +488,7 @@ export default function App() {
               onChangeTopStrip={setTopStrip}
               onBackToCamera={() => {
                 resetEditorToDefault();
+                camera.startCamera();
                 setCurrentStep('capture');
               }}
               onResetSession={handleResetSession}
