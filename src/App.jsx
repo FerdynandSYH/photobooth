@@ -239,10 +239,18 @@ export default function App() {
     setCurrentStep('grid');
   };
 
+  const [printedData, setPrintedData] = useState(null);
+
   // Beralih ke halaman animasi cetak photobooth
-  const handleDownloadAndPrint = (dataUrl) => {
+  const handleDownloadAndPrint = (data) => {
     audio.unlockAudio();
-    setPrintedImageUrl(dataUrl);
+    if (typeof data === 'string') {
+      setPrintedImageUrl(data);
+      setPrintedData({ imageUrl: data });
+    } else {
+      setPrintedImageUrl(data?.imageUrl || data?.dataUrl);
+      setPrintedData(data);
+    }
     setCurrentStep('printing');
   };
 

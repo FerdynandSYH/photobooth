@@ -161,6 +161,7 @@ function getStripCacheKey({
   fontSize = 21,
   showDate = true,
   customDate = '',
+  scaleMultiplier = 1,
 }) {
   const photoKeys = photos
     ? photos.map(p => (p?.dataUrl ? p.dataUrl.slice(0, 80) + '_' + p.dataUrl.length : (p?.id || ''))).join('|')
@@ -179,6 +180,7 @@ function getStripCacheKey({
     fontSize,
     showDate ? '1' : '0',
     customDate,
+    scaleMultiplier,
   ].join(':::');
 }
 
@@ -186,6 +188,7 @@ function getStripCacheKey({
  * Compiles a strip (frame, film markings, photos with filters, footer text)
  * into an offscreen canvas. Once compiled, moving/rotating/scaling the strip
  * uses hardware-accelerated drawImage, eliminating all CPU pixel looping and lag!
+ * Supports scaleMultiplier (1x standard preview, 2.5x-3x Ultra HD print quality).
  */
 async function compileStripBitmap({
   photos,
@@ -199,16 +202,25 @@ async function compileStripBitmap({
   customDate = '',
   stripWidth,
   stripHeight,
+  scaleMultiplier = 1,
 }) {
   const {
     cols = 1,
     rows = 3,
-    photoWidth = 460,
-    photoHeight = 335,
-    gap = 16,
-    margin = 28,
-    footerHeight = 85,
+    photoWidth: basePhotoWidth = 460,
+    photoHeight: basePhotoHeight = 335,
+    gap: baseGap = 16,
+    margin: baseMargin = 28,
+    footerHeight: baseFooterHeight = 85,
   } = layout;
+
+  const photoWidth = Math.round(basePhotoWidth * scaleMultiplier);
+  const photoHeight = Math.round(basePhotoHeight * scaleMultiplier);
+  const gap = Math.round(baseGap * scaleMultiplier);
+  const margin = Math.round(baseMargin * scaleMultiplier);
+  const footerHeight = Math.round(baseFooterHeight * scaleMultiplier);
+  const cornerRadius = Math.round(10 * scaleMultiplier);
+  const photoRadius = Math.round(6 * scaleMultiplier);
 
   const offscreen = document.createElement('canvas');
   offscreen.width = stripWidth;
@@ -217,7 +229,7 @@ async function compileStripBitmap({
 
   // 1. Photo Strip Frame Body
   ctx.save();
-  drawRoundedRect(ctx, 0, 0, stripWidth, stripHeight, 10);
+  drawRoundedRect(ctx, 0, 0, stripWidth, stripHeight, cornerRadius);
   ctx.fillStyle = frame.bgValue || '#FFFFFF';
   ctx.fill();
   ctx.restore();
@@ -238,7 +250,7 @@ async function compileStripBitmap({
     const photo = photos[index];
 
     ctx.save();
-    drawRoundedRect(ctx, x, y, photoWidth, photoHeight, 6);
+    drawRoundedRect(ctx, x, y, photoWidth, photoHeight, photoRadius);
     ctx.clip();
 
     if (photo && (photo.canvas || photo.dataUrl || photo.image)) {
@@ -286,7 +298,7 @@ async function compileStripBitmap({
       ctx.fillStyle = frame.isDark ? '#27272A' : '#F1F5F9';
       ctx.fillRect(x, y, photoWidth, photoHeight);
       ctx.fillStyle = frame.isDark ? '#52525B' : '#94A3B8';
-      ctx.font = '600 18px "Plus Jakarta Sans", sans-serif';
+      ctx.font = `600 ${Math.round(18 * scaleMultiplier)}px "Plus Jakarta Sans", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(`Foto #${index + 1}`, x + photoWidth / 2, y + photoHeight / 2);
@@ -294,11 +306,11 @@ async function compileStripBitmap({
 
     ctx.restore();
 
-    // Subtle 1.5px border around each photo
+    // Subtle border around each photo
     ctx.save();
-    drawRoundedRect(ctx, x, y, photoWidth, photoHeight, 6);
+    drawRoundedRect(ctx, x, y, photoWidth, photoHeight, photoRadius);
     ctx.strokeStyle = frame.isDark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = Math.max(1, 1.5 * scaleMultiplier);
     ctx.stroke();
     ctx.restore();
   }
@@ -317,20 +329,40 @@ async function compileStripBitmap({
   const activeFontWeight = fontConfig?.fontWeight || '800';
 
   const displayTitle = (footerText || 'GOPHOTOBOOTH STUDIO').toUpperCase();
-  const baseFontSize = fontSize || 21;
+  let baseFontSize = Math.round((fontSize || 21) * scaleMultiplier);
   ctx.font = `${activeFontWeight} ${baseFontSize}px ${activeFontFamily}`;
-  ctx.letterSpacing = fontConfig?.id === 'romantic-script' ? '0px' : '2.5px';
+  ctx.letterSpacing = fontConfig?.id === 'romantic-script' ? '0px' : `${Math.round(2.5 * scaleMultiplier)}px`;
+
+  // Pastikan teks judul tidak pernah meluber atau terpotong di tepi strip
+  const maxTitleWidth = stripWidth - Math.round(48 * scaleMultiplier);
+  let measuredWidth = ctx.measureText(displayTitle).width;
+  if (measuredWidth > maxTitleWidth && measuredWidth > 0) {
+    const scaleFactor = maxTitleWidth / measuredWidth;
+    baseFontSize = Math.max(Math.round(9 * scaleMultiplier), Math.floor(baseFontSize * scaleFactor * 0.96));
+    ctx.font = `${activeFontWeight} ${baseFontSize}px ${activeFontFamily}`;
+    const letterSpacingVal = fontConfig?.id === 'romantic-script' ? 0 : Math.max(0.5, Math.round(2 * scaleMultiplier * scaleFactor));
+    ctx.letterSpacing = `${letterSpacingVal}px`;
+    measuredWidth = ctx.measureText(displayTitle).width;
+
+    while (measuredWidth > maxTitleWidth && baseFontSize > Math.round(9 * scaleMultiplier)) {
+      baseFontSize -= 1;
+      ctx.font = `${activeFontWeight} ${baseFontSize}px ${activeFontFamily}`;
+      measuredWidth = ctx.measureText(displayTitle).width;
+    }
+  }
+
   ctx.shadowColor = frame.isDark ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.6)';
-  ctx.shadowBlur = 4;
-  const titleOffsetY = showDate ? (baseFontSize > 24 ? 9 : 7) : 0;
+  ctx.shadowBlur = Math.round(4 * scaleMultiplier);
+  const titleOffsetY = showDate ? (baseFontSize > 24 * scaleMultiplier ? 9 * scaleMultiplier : 7 * scaleMultiplier) : 0;
   ctx.fillText(displayTitle, stripCenterX, footerCenterY - titleOffsetY);
 
   if (showDate) {
     const displayDate = customDate || formatCurrentDate();
-    ctx.font = `600 12px "Plus Jakarta Sans", sans-serif`;
-    ctx.letterSpacing = '1.5px';
+    const dateFontSize = Math.round(12 * scaleMultiplier);
+    ctx.font = `600 ${dateFontSize}px "Plus Jakarta Sans", sans-serif`;
+    ctx.letterSpacing = `${Math.round(1.5 * scaleMultiplier)}px`;
     ctx.fillStyle = subtextColor;
-    ctx.fillText(`${displayDate} • MEMORIES`, stripCenterX, footerCenterY + 16);
+    ctx.fillText(`${displayDate} • MEMORIES`, stripCenterX, footerCenterY + Math.round(16 * scaleMultiplier));
   }
   ctx.restore();
 
@@ -357,6 +389,7 @@ async function drawSingleStrip(ctx, {
   rotation = 0,
   scale = 1,
   hasShadow = true,
+  scaleMultiplier = 1,
 }) {
   const cacheKey = getStripCacheKey({
     photos,
@@ -368,6 +401,7 @@ async function drawSingleStrip(ctx, {
     fontSize,
     showDate,
     customDate,
+    scaleMultiplier,
   });
 
   let stripBitmap = stripBitmapCache.get(cacheKey);
@@ -384,6 +418,7 @@ async function drawSingleStrip(ctx, {
       customDate,
       stripWidth,
       stripHeight,
+      scaleMultiplier,
     });
     if (stripBitmapCache.size > 24) {
       const oldestKey = stripBitmapCache.keys().next().value;
@@ -406,24 +441,26 @@ async function drawSingleStrip(ctx, {
   }
   ctx.translate(-stripWidth / 2, -stripHeight / 2);
 
+  const cornerRadius = Math.round(10 * scaleMultiplier);
+
   // 1. Realistic 3D drop shadow (casts on background and on any overlapping strip beneath)
   if (hasShadow) {
     ctx.save();
     // Ambient soft blur shadow
     ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
-    ctx.shadowBlur = 38;
+    ctx.shadowBlur = Math.round(38 * scaleMultiplier);
     ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 16;
+    ctx.shadowOffsetY = Math.round(16 * scaleMultiplier);
     ctx.fillStyle = frame.bgValue || '#FFFFFF';
-    drawRoundedRect(ctx, 0, 0, stripWidth, stripHeight, 10);
+    drawRoundedRect(ctx, 0, 0, stripWidth, stripHeight, cornerRadius);
     ctx.fill();
 
     // Directional contact shadow for sharp overlap definition
     ctx.shadowColor = 'rgba(0, 0, 0, 0.28)';
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = Math.round(12 * scaleMultiplier);
     ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 6;
-    drawRoundedRect(ctx, 0, 0, stripWidth, stripHeight, 10);
+    ctx.shadowOffsetY = Math.round(6 * scaleMultiplier);
+    drawRoundedRect(ctx, 0, 0, stripWidth, stripHeight, cornerRadius);
     ctx.fill();
     ctx.restore();
   }
@@ -443,16 +480,23 @@ export function getCanvasDimensions({
   bgAspectRatio = 'auto',
   stripScale = 72,
   isDuplicateEnabled = false,
+  scaleMultiplier = 1,
 }) {
   const {
     cols = 1,
     rows = 3,
-    photoWidth = 460,
-    photoHeight = 335,
-    gap = 16,
-    margin = 28,
-    footerHeight = 85,
+    photoWidth: basePhotoWidth = 460,
+    photoHeight: basePhotoHeight = 335,
+    gap: baseGap = 16,
+    margin: baseMargin = 28,
+    footerHeight: baseFooterHeight = 85,
   } = layout || {};
+
+  const photoWidth = Math.round(basePhotoWidth * scaleMultiplier);
+  const photoHeight = Math.round(basePhotoHeight * scaleMultiplier);
+  const gap = Math.round(baseGap * scaleMultiplier);
+  const margin = Math.round(baseMargin * scaleMultiplier);
+  const footerHeight = Math.round(baseFooterHeight * scaleMultiplier);
 
   const stripWidth = (cols * photoWidth) + ((cols - 1) * gap) + (margin * 2);
   const stripHeight = (rows * photoHeight) + ((rows - 1) * gap) + (margin * 2) + footerHeight;
@@ -493,20 +537,20 @@ export function getCanvasDimensions({
       if (boundingStripWidth > boundingStripHeight) {
         totalWidth = Math.round(boundingStripWidth / scale);
         const padX = Math.round((totalWidth - boundingStripWidth) / 2);
-        const padY = Math.max(50, Math.round(padX * 0.72));
+        const padY = Math.max(Math.round(50 * scaleMultiplier), Math.round(padX * 0.72));
         totalHeight = boundingStripHeight + (padY * 2);
       } else {
         totalHeight = Math.round(boundingStripHeight / scale);
         const padY = Math.round((totalHeight - boundingStripHeight) / 2);
-        const padX = Math.max(50, Math.round(padY * 0.72));
+        const padX = Math.max(Math.round(50 * scaleMultiplier), Math.round(padY * 0.72));
         totalWidth = boundingStripWidth + (padX * 2);
       }
     }
   } else {
     // Tanpa background: if duplicated, give comfortable room for both strips with subtle drop shadow
     if (isDuplicate) {
-      totalWidth = Math.round(boundingStripWidth + 90);
-      totalHeight = Math.round(boundingStripHeight + 80);
+      totalWidth = Math.round(boundingStripWidth + (90 * scaleMultiplier));
+      totalHeight = Math.round(boundingStripHeight + (80 * scaleMultiplier));
     } else {
       totalWidth = stripWidth;
       totalHeight = stripHeight;
@@ -548,12 +592,15 @@ export async function renderPhotoboothCanvas({
   strip2Scale = 1,
   topStrip = 'strip2',
   targetCanvas = null,
+  exportScale = 1,
 }) {
   if (document.fonts) {
     try {
       await document.fonts.ready;
     } catch (e) {}
   }
+
+  const scaleMultiplier = Math.max(1, exportScale || 1);
 
   const canvas = targetCanvas || document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -569,6 +616,7 @@ export async function renderPhotoboothCanvas({
     bgAspectRatio,
     stripScale,
     isDuplicateEnabled,
+    scaleMultiplier,
   });
 
   const hasBackground = background && background.id !== 'none';
@@ -588,8 +636,8 @@ export async function renderPhotoboothCanvas({
     const baseCenterY = Math.round((totalHeight - stripHeight) / 2);
     
     // Max displacement limits (allows intuitive dragging across the canvas)
-    const maxShiftX = Math.round(Math.max(160, totalWidth * 0.38));
-    const maxShiftY = Math.round(Math.max(160, totalHeight * 0.32));
+    const maxShiftX = Math.round(Math.max(160 * scaleMultiplier, totalWidth * 0.38));
+    const maxShiftY = Math.round(Math.max(160 * scaleMultiplier, totalHeight * 0.32));
 
     // Strip 1 coordinates
     const s1PosX = Math.max(-100, Math.min(100, stripPosition?.x ?? (isDuplicate ? -16 : 0)));
@@ -611,6 +659,7 @@ export async function renderPhotoboothCanvas({
       stripWidth,
       stripHeight,
       hasShadow: hasBackground || isDuplicate,
+      scaleMultiplier,
     };
 
     const s1Scale = Math.max(0.5, Math.min(1.8, strip1Scale !== undefined ? strip1Scale : 1));

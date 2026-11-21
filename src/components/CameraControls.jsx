@@ -84,15 +84,16 @@ export default function CameraControls({
 
           {/* Audio Mute / Unmute */}
           <button
+            type="button"
             onClick={onToggleMute}
-            title={isMuted ? 'Suara Dinonaktifkan' : 'Suara Aktif'}
-            className={`p-2 rounded-xl text-xs font-medium border transition cursor-pointer ${
+            title={isMuted ? 'Suara Dinonaktifkan (Klik untuk aktifkan)' : 'Suara Aktif (Klik untuk nonaktifkan)'}
+            className={`p-2 rounded-xl text-xs font-medium border transition cursor-pointer flex items-center justify-center ${
               isMuted
-                ? 'bg-stone-100 border-stone-200 text-stone-400'
+                ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-2xs'
                 : 'bg-stone-100 border-stone-200 text-stone-700 hover:text-stone-900 hover:bg-stone-200'
             }`}
           >
-            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            {isMuted ? <VolumeX className="w-4 h-4 text-rose-600" /> : <Volume2 className="w-4 h-4" />}
           </button>
         </div>
       </div>

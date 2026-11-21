@@ -736,8 +736,9 @@ export default function EditorPage({
   ]);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isExportingHD, setIsExportingHD] = useState(false);
 
-  const handleDownload = async () => {
+  const handleDownloadStandard = async () => {
     if (!canvasRef.current || isSaving) return;
     const canvas = canvasRef.current;
 
@@ -755,8 +756,60 @@ export default function EditorPage({
     } finally {
       setIsSaving(false);
       if (onDownloadAndPrint) {
-        onDownloadAndPrint(dataUrl);
+        onDownloadAndPrint({
+          imageUrl: dataUrl,
+          canvas,
+        });
       }
+    }
+  };
+
+  const handleDownloadHD = async () => {
+    if (isExportingHD) return;
+    setIsExportingHD(true);
+
+    try {
+      // Render Ultra HD canvas (2.5x scale multiplier = ~1290 x 2945 px, 300 DPI print quality)
+      const hdCanvas = await renderPhotoboothCanvas({
+        photos,
+        layout,
+        frame: selectedFrame,
+        background: selectedBackground,
+        bgAspectRatio: selectedBgRatio,
+        filterConfig: selectedFilter,
+        footerText,
+        fontSize,
+        stripScale,
+        stripPosition,
+        stripRotation,
+        strip1Scale,
+        showDate,
+        isDuplicateEnabled,
+        strip2Photos: effectiveStrip2Photos,
+        strip2Position,
+        strip2Rotation,
+        strip2Scale,
+        topStrip,
+        exportScale: 2.5,
+      });
+
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+      const filename = `gophotobooth-ultrahd-${dateStr}.png`;
+
+      await saveOrSharePhoto({ canvas: hdCanvas, filename });
+
+      if (onDownloadAndPrint) {
+        const previewUrl = canvasRef.current ? canvasRef.current.toDataURL('image/png') : hdCanvas.toDataURL('image/png');
+        onDownloadAndPrint({
+          imageUrl: previewUrl,
+          canvas: canvasRef.current || hdCanvas,
+        });
+      }
+    } catch (e) {
+      console.error('Gagal export HD:', e);
+    } finally {
+      setIsExportingHD(false);
     }
   };
 
@@ -2016,20 +2069,39 @@ export default function EditorPage({
 
           {/* 6. Tombol Download & Sesi Baru */}
           <div className="pt-3 space-y-2.5">
+            {/* Tombol Download Ultra HD 300 DPI (Fitur Baru) */}
             <button
-              onClick={handleDownload}
-              disabled={isSaving}
-              className="w-full bg-stone-900 hover:bg-stone-800 active:scale-[0.98] text-white font-bold py-4 px-6 rounded-2xl text-base shadow-md hover:shadow-lg transition flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-80"
+              onClick={handleDownloadHD}
+              disabled={isExportingHD || isSaving}
+              className="w-full bg-stone-900 hover:bg-stone-800 active:scale-[0.98] text-white font-bold py-3.5 px-5 rounded-2xl text-sm shadow-md hover:shadow-lg transition flex items-center justify-between cursor-pointer disabled:opacity-80 group"
             >
-              <Download className={`w-5 h-5 text-stone-200 ${isSaving ? 'animate-bounce' : ''}`} />
-              <span>{isSaving ? 'Menyimpan Foto...' : 'Download Foto (.PNG)'}</span>
+              <div className="flex items-center gap-2.5">
+                <Sparkles className={`w-4 h-4 text-amber-300 ${isExportingHD ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`} />
+                <span className="text-left font-serif font-bold text-sm">
+                  {isExportingHD ? 'Memproses Resolusi HD...' : 'Download Ultra HD (.PNG)'}
+                </span>
+              </div>
+              <span className="text-[10px] font-mono tracking-wider uppercase font-bold bg-amber-400/20 text-amber-200 border border-amber-300/30 px-2 py-0.5 rounded-md">
+                300 DPI Cetak
+              </span>
             </button>
 
+            {/* Download Standar (.PNG) */}
+            <button
+              onClick={handleDownloadStandard}
+              disabled={isSaving || isExportingHD}
+              className="w-full bg-white hover:bg-stone-50 active:scale-[0.98] text-stone-800 font-semibold py-3 px-5 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-2 border border-stone-300 shadow-2xs cursor-pointer disabled:opacity-75"
+            >
+              <Download className={`w-4 h-4 text-stone-600 ${isSaving ? 'animate-bounce' : ''}`} />
+              <span>{isSaving ? 'Menyimpan Foto Standar...' : 'Download Foto Standar (1x)'}</span>
+            </button>
+
+            {/* Mulai Sesi Baru */}
             <button
               onClick={onResetSession}
-              className="w-full bg-white hover:bg-stone-50 active:scale-[0.98] text-stone-700 hover:text-stone-900 font-semibold py-3 px-5 rounded-xl text-sm transition flex items-center justify-center gap-2 border border-stone-300 shadow-2xs cursor-pointer"
+              className="w-full bg-transparent hover:bg-stone-100/70 active:scale-[0.98] text-stone-600 hover:text-stone-900 font-medium py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer"
             >
-              <RefreshCw className="w-4 h-4 text-stone-600" />
+              <RefreshCw className="w-3.5 h-3.5 text-stone-500" />
               <span>Mulai Sesi Baru dari Awal</span>
             </button>
           </div>

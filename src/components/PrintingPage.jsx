@@ -4,6 +4,7 @@ import { saveOrSharePhoto, isMobileDevice } from '../utils/downloadHelper';
 
 export default function PrintingPage({
   imageUrl,
+  editorCanvas = null,
   onStartNewSession,
   onBackToEditor,
   audio,
@@ -20,13 +21,17 @@ export default function PrintingPage({
 
   // Run the realistic photobooth paper emergence animation
   useEffect(() => {
-    // Ensure audio context is ready for the completion chime
+    // Ensure audio context is ready for the completion chime & start printer sound
     if (audio?.unlockAudio) {
       audio.unlockAudio();
+    }
+    if (audio?.playPrintingSound) {
+      audio.playPrintingSound(3.0);
     }
 
     const duration = 3200; // 3.2 seconds smooth photo strip emergence
     const startTime = performance.now();
+    hasTriggeredComplete.current = false;
 
     // Natural ease-out cubic curve so emergence decelerates gently with zero sudden stops
     const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
