@@ -586,8 +586,9 @@ async function compileStripBitmap({
   // 4. Render Footer Info (Caption & Date)
   const footerCenterY = stripHeight - (footerHeight / 2);
   const stripCenterX = stripWidth / 2;
-  const textColor = frame.textColor || (frame.isDark ? '#FFFFFF' : '#1E293B');
-  const subtextColor = frame.subtextColor || (frame.isDark ? '#94A3B8' : '#64748B');
+  const isDarkFrame = Boolean(frame.isDark);
+  const textColor = frame.textColor || (isDarkFrame ? '#FFFFFF' : '#141414');
+  const subtextColor = frame.subtextColor || (isDarkFrame ? '#CBD5E1' : '#44403C');
 
   ctx.save();
   ctx.textAlign = 'center';
@@ -619,38 +620,14 @@ async function compileStripBitmap({
     }
   }
 
-  // Draw solid rounded label pill/box matching frame.bgValue behind watermark & date for pattern frames
-  if (frame.hasPattern || frame.patternType) {
-    const isDark = frame.isDark;
-    const pillPaddingX = Math.round(20 * scaleMultiplier);
-    const pillWidth = Math.min(
-      stripWidth - Math.round(36 * scaleMultiplier),
-      Math.max(measuredWidth + pillPaddingX * 2, Math.round(200 * scaleMultiplier))
-    );
-    const pillHeight = showDate
-      ? Math.round(48 * scaleMultiplier)
-      : Math.round(baseFontSize + 18 * scaleMultiplier);
-    const pillX = stripCenterX - pillWidth / 2;
-    const pillY = footerCenterY - pillHeight / 2;
-    const pillRadius = Math.round(pillHeight / 2);
+  // Teks footer dirender langsung di atas permukaan frame (tanpa kotak/pill pembungkus).
+  // Berikan efek bayangan/halo lembut agar teks selalu kontras dan terbaca tajam
+  // baik di atas frame warna solid maupun frame bermotif (polkadot/y2k sparkle).
+  ctx.shadowColor = isDarkFrame ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)';
+  ctx.shadowBlur = Math.round(3 * scaleMultiplier);
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = Math.round(0.8 * scaleMultiplier);
 
-    ctx.save();
-    ctx.fillStyle = frame.bgValue || (isDark ? '#111827' : '#FFFFFF');
-    ctx.shadowColor = isDark ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.08)';
-    ctx.shadowBlur = Math.round(6 * scaleMultiplier);
-    ctx.shadowOffsetY = Math.round(1.5 * scaleMultiplier);
-    drawRoundedRect(ctx, pillX, pillY, pillWidth, pillHeight, pillRadius);
-    ctx.fill();
-
-    ctx.shadowColor = 'transparent';
-    ctx.lineWidth = Math.max(1, Math.round(1 * scaleMultiplier));
-    ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)';
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  ctx.shadowColor = frame.isDark ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.6)';
-  ctx.shadowBlur = Math.round(4 * scaleMultiplier);
   const titleOffsetY = showDate ? (baseFontSize > 24 * scaleMultiplier ? 9 * scaleMultiplier : 7 * scaleMultiplier) : 0;
   ctx.fillText(displayTitle, stripCenterX, footerCenterY - titleOffsetY);
 
@@ -660,6 +637,10 @@ async function compileStripBitmap({
     ctx.font = `600 ${dateFontSize}px "Plus Jakarta Sans", sans-serif`;
     ctx.letterSpacing = `${Math.round(1.5 * scaleMultiplier)}px`;
     ctx.fillStyle = subtextColor;
+    ctx.shadowColor = isDarkFrame ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)';
+    ctx.shadowBlur = Math.round(3 * scaleMultiplier);
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = Math.round(0.8 * scaleMultiplier);
     ctx.fillText(`${displayDate} • MEMORIES`, stripCenterX, footerCenterY + Math.round(16 * scaleMultiplier));
   }
   ctx.restore();

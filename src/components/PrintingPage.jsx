@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Download, RotateCcw, ArrowLeft, Printer, Sparkles, CheckCircle2, Copy, Check, Ticket, Share2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { saveOrSharePhoto, isMobileDevice } from '../utils/downloadHelper';
+import { renderPhotoboothCanvas } from '../utils/canvasRenderer';
 
 export default function PrintingPage({
   imageUrl,
   editorCanvas = null,
+  hdConfig = null,
   onStartNewSession,
   onBackToEditor,
   audio,
@@ -14,6 +16,7 @@ export default function PrintingPage({
   const [isPrinted, setIsPrinted] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isExportingHD, setIsExportingHD] = useState(false);
   const isMobile = isMobileDevice();
   const hasTriggeredComplete = useRef(false);
 
@@ -114,6 +117,37 @@ export default function PrintingPage({
       console.warn('Gagal mengunduh file foto:', e);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Handle direct Ultra HD (300 DPI) download
+  const handleDownloadHD = async () => {
+    if (isExportingHD || isSaving) return;
+    setIsExportingHD(true);
+
+    try {
+      let targetCanvas = editorCanvas;
+      if (hdConfig) {
+        targetCanvas = await renderPhotoboothCanvas({
+          ...hdConfig,
+          exportScale: 2.5,
+        });
+      }
+
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+      const filename = `gophotobooth-ultrahd-${dateStr}.png`;
+
+      if (targetCanvas) {
+        await saveOrSharePhoto({ canvas: targetCanvas, filename, forceDownload: true });
+      } else if (imageUrl) {
+        await saveOrSharePhoto({ dataUrl: imageUrl, filename, forceDownload: true });
+      }
+    } catch (e) {
+      console.warn('Gagal mengunduh Ultra HD:', e);
+      await handleForceDownload();
+    } finally {
+      setIsExportingHD(false);
     }
   };
 
@@ -312,16 +346,17 @@ export default function PrintingPage({
           </button>
         </div>
 
-        {/* 2. Secondary Utility Actions: Unduh File (.PNG) & Salin ke Clipboard */}
+        {/* 2. Secondary Utility Actions: Unduh Ultra HD (300 DPI) & Salin ke Clipboard */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
           <button
-            onClick={handleForceDownload}
+            onClick={handleDownloadHD}
             type="button"
-            disabled={isSaving}
+            disabled={isSaving || isExportingHD}
             className="min-h-[46px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white hover:bg-stone-50 text-stone-800 text-xs sm:text-sm font-semibold border border-stone-300 shadow-2xs hover:border-stone-400 active:scale-95 transition cursor-pointer disabled:opacity-75"
+            title="Unduh file Ultra HD dengan kualitas cetak 300 DPI"
           >
-            <Download className="w-4 h-4 text-stone-600" />
-            <span>Unduh File (.PNG)</span>
+            <Sparkles className={`w-4 h-4 text-amber-600 ${isExportingHD ? 'animate-spin' : ''}`} />
+            <span>{isExportingHD ? 'Memproses HD...' : 'Unduh Ultra HD (300 DPI)'}</span>
           </button>
 
           <button

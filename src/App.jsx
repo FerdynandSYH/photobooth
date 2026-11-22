@@ -564,6 +564,8 @@ export default function App() {
         {currentStep === 'printing' && (
           <PrintingPage
             imageUrl={printedImageUrl}
+            editorCanvas={printedData?.canvas || null}
+            hdConfig={printedData?.hdConfig || null}
             onStartNewSession={handleResetSession}
             onBackToEditor={() => setCurrentStep('editor')}
             audio={audio}

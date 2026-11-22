@@ -24,6 +24,8 @@ import {
   Check,
   Sliders,
   Palette,
+  Printer,
+  ArrowRight,
 } from 'lucide-react';
 import { FRAMES, FRAME_CATEGORIES } from '../constants/frames';
 import { BACKGROUNDS, BACKGROUND_CATEGORIES, BACKGROUND_RATIOS } from '../constants/backgrounds';
@@ -761,81 +763,40 @@ export default function EditorPage({
     updateCanvasBounds,
   ]);
 
-  const [isSaving, setIsSaving] = useState(false);
-  const [isExportingHD, setIsExportingHD] = useState(false);
-
-  const handleDownloadStandard = async () => {
-    if (!canvasRef.current || isSaving) return;
+  // Beralih ke tahap cetak & dispenser photobooth dengan membawa data konfigurasi untuk ekspor HD
+  const handleProceedToPrint = () => {
+    if (!canvasRef.current) return;
     const canvas = canvasRef.current;
+    const previewUrl = canvas.toDataURL('image/png');
 
-    const now = new Date();
-    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-    const filename = `gophotobooth-${dateStr}.png`;
+    const hdConfig = {
+      photos,
+      layout,
+      frame: selectedFrame,
+      background: selectedBackground,
+      bgAspectRatio: selectedBgRatio,
+      filterConfig: selectedFilter,
+      footerText,
+      fontSize,
+      stripScale,
+      stripPosition,
+      stripRotation,
+      strip1Scale,
+      showDate,
+      isDuplicateEnabled,
+      strip2Photos: effectiveStrip2Photos,
+      strip2Position,
+      strip2Rotation,
+      strip2Scale,
+      topStrip,
+    };
 
-    const dataUrl = canvas.toDataURL('image/png');
-    setIsSaving(true);
-
-    try {
-      await saveOrSharePhoto({ canvas, filename });
-    } catch (e) {
-      console.warn('Gagal menyimpan foto:', e);
-    } finally {
-      setIsSaving(false);
-      if (onDownloadAndPrint) {
-        onDownloadAndPrint({
-          imageUrl: dataUrl,
-          canvas,
-        });
-      }
-    }
-  };
-
-  const handleDownloadHD = async () => {
-    if (isExportingHD) return;
-    setIsExportingHD(true);
-
-    try {
-      // Render Ultra HD canvas (2.5x scale multiplier = ~1290 x 2945 px, 300 DPI print quality)
-      const hdCanvas = await renderPhotoboothCanvas({
-        photos,
-        layout,
-        frame: selectedFrame,
-        background: selectedBackground,
-        bgAspectRatio: selectedBgRatio,
-        filterConfig: selectedFilter,
-        footerText,
-        fontSize,
-        stripScale,
-        stripPosition,
-        stripRotation,
-        strip1Scale,
-        showDate,
-        isDuplicateEnabled,
-        strip2Photos: effectiveStrip2Photos,
-        strip2Position,
-        strip2Rotation,
-        strip2Scale,
-        topStrip,
-        exportScale: 2.5,
+    if (onDownloadAndPrint) {
+      onDownloadAndPrint({
+        imageUrl: previewUrl,
+        canvas,
+        hdConfig,
       });
-
-      const now = new Date();
-      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-      const filename = `gophotobooth-ultrahd-${dateStr}.png`;
-
-      await saveOrSharePhoto({ canvas: hdCanvas, filename });
-
-      if (onDownloadAndPrint) {
-        const previewUrl = canvasRef.current ? canvasRef.current.toDataURL('image/png') : hdCanvas.toDataURL('image/png');
-        onDownloadAndPrint({
-          imageUrl: previewUrl,
-          canvas: canvasRef.current || hdCanvas,
-        });
-      }
-    } catch (e) {
-      console.error('Gagal export HD:', e);
-    } finally {
-      setIsExportingHD(false);
     }
   };
 
@@ -854,7 +815,7 @@ export default function EditorPage({
 
         <div className="flex items-center gap-2 text-stone-800 font-serif font-bold text-sm sm:text-base">
           <Sparkles className="w-4 h-4 text-amber-600" />
-          <span>Studio Kustomisasi &amp; Unduh</span>
+          <span>Studio Kustomisasi</span>
         </div>
       </div>
 
@@ -1286,7 +1247,7 @@ export default function EditorPage({
           </div>
 
           {/* Panduan Gestur Interaktif yang Menarik & Lucu */}
-          {canAdjust ? (
+          {canAdjust && (
             <div className="w-full mt-3 bg-gradient-to-r from-[#FFFDF9] via-[#FAF6F0] to-[#F5ECE1] border border-[#E7DFD3] rounded-2xl p-3 shadow-2xs">
               <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-stone-200/60 text-xs">
                 <span className="font-bold text-stone-900 flex items-center gap-1.5">
@@ -1320,16 +1281,6 @@ export default function EditorPage({
                   <p className="text-[10px] text-stone-500">Putar 2 jari / Tarik tombol atas</p>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="w-full mt-3 p-3 bg-gradient-to-r from-stone-50 via-stone-50/80 to-amber-50/50 rounded-2xl border border-stone-200/80 text-center">
-              <p className="text-xs text-stone-800 font-bold flex items-center justify-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                <span>Ingin foto bisa digeser &amp; diatur sesukamu?</span>
-              </p>
-              <p className="text-[11px] text-stone-500 mt-0.5">
-                Buka menu <strong className="text-stone-800">Duplikat Strip</strong> atau <strong className="text-stone-800">Latar Belakang</strong> untuk membuka kanvas interaktif!
-              </p>
             </div>
           )}
         </div>
@@ -2112,38 +2063,34 @@ export default function EditorPage({
             )}
           </div>
 
-          {/* 6. Tombol Download & Sesi Baru */}
+          {/* 6. Tombol Aksi: Cetak Foto & Sesi Baru */}
           <div className="pt-3 space-y-2.5">
-            {/* Tombol Download Ultra HD 300 DPI (Fitur Baru) */}
+            {/* CTA Utama: Cetak Foto Sekarang (Memicu animasi dispenser & download di PrintingPage) */}
             <button
-              onClick={handleDownloadHD}
-              disabled={isExportingHD || isSaving}
-              className="w-full bg-stone-900 hover:bg-stone-800 active:scale-[0.98] text-white font-bold py-3.5 px-5 rounded-2xl text-sm shadow-md hover:shadow-lg transition flex items-center justify-between cursor-pointer disabled:opacity-80 group"
+              onClick={handleProceedToPrint}
+              type="button"
+              className="w-full min-h-[56px] bg-stone-900 hover:bg-stone-800 active:scale-[0.98] text-white font-bold py-4 px-6 rounded-2xl text-sm sm:text-base shadow-lg hover:shadow-xl transition flex items-center justify-between cursor-pointer group border border-stone-800"
             >
-              <div className="flex items-center gap-2.5">
-                <Sparkles className={`w-4 h-4 text-amber-300 ${isExportingHD ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`} />
-                <span className="text-left font-serif font-bold text-sm">
-                  {isExportingHD ? 'Memproses Resolusi HD...' : 'Download Ultra HD (.PNG)'}
-                </span>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-stone-800 border border-stone-700 flex items-center justify-center text-amber-300 flex-shrink-0 group-hover:scale-105 transition-transform shadow-inner">
+                  <Printer className="w-5 h-5 text-amber-300" />
+                </div>
+                <div className="text-left">
+                  <p className="font-serif font-bold text-base sm:text-lg leading-tight">
+                    Cetak Foto Sekarang
+                  </p>
+                  <p className="text-[11px] text-stone-300 font-sans font-normal">
+                    Lanjut ke mesin cetak &amp; simpan hasil foto
+                  </p>
+                </div>
               </div>
-              <span className="text-[10px] font-mono tracking-wider uppercase font-bold bg-amber-400/20 text-amber-200 border border-amber-300/30 px-2 py-0.5 rounded-md">
-                300 DPI Cetak
-              </span>
-            </button>
-
-            {/* Download Standar (.PNG) */}
-            <button
-              onClick={handleDownloadStandard}
-              disabled={isSaving || isExportingHD}
-              className="w-full bg-white hover:bg-stone-50 active:scale-[0.98] text-stone-800 font-semibold py-3 px-5 rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-2 border border-stone-300 shadow-2xs cursor-pointer disabled:opacity-75"
-            >
-              <Download className={`w-4 h-4 text-stone-600 ${isSaving ? 'animate-bounce' : ''}`} />
-              <span>{isSaving ? 'Menyimpan Foto Standar...' : 'Download Foto Standar (1x)'}</span>
+              <ArrowRight className="w-5 h-5 text-stone-300 group-hover:translate-x-1.5 transition-transform" />
             </button>
 
             {/* Mulai Sesi Baru */}
             <button
               onClick={onResetSession}
+              type="button"
               className="w-full bg-transparent hover:bg-stone-100/70 active:scale-[0.98] text-stone-600 hover:text-stone-900 font-medium py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5 text-stone-500" />
@@ -2154,28 +2101,6 @@ export default function EditorPage({
         </div>
 
       </div>
-
-      {/* Loading & Processing Modal for Ultra HD 300 DPI Export */}
-      {isExportingHD && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full border border-stone-200 shadow-2xl flex flex-col items-center text-center space-y-3.5 animate-scale-in">
-            <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 shadow-sm">
-              <Sparkles className="w-7 h-7 animate-spin text-amber-600" />
-            </div>
-            <div>
-              <h3 className="font-serif font-bold text-stone-900 text-base">
-                Memproses Ultra HD (300 DPI)
-              </h3>
-              <p className="text-xs text-stone-500 mt-1">
-                Merender strip foto resolusi tinggi dengan tekstur dan filter...
-              </p>
-            </div>
-            <div className="w-full bg-stone-100 rounded-full h-2 overflow-hidden border border-stone-200">
-              <div className="bg-stone-900 h-full w-2/3 animate-pulse rounded-full" />
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

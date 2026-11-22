@@ -463,7 +463,7 @@ export const FRAMES = [
     badge: 'Noir Polka',
     bgValue: '#0B0B0B',
     textColor: '#FFFFFF',
-    subtextColor: '#A3A3A3',
+    subtextColor: '#CBD5E1',
     isDark: true,
     hasPattern: true,
     patternType: 'noir-classic-polka',
