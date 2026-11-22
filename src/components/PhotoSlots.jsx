@@ -1,5 +1,5 @@
 import React from 'react';
-import { RotateCcw, Check, Images, Camera, X } from 'lucide-react';
+import { RotateCcw, Check, Images, Camera, X, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export default function PhotoSlots({
   photos,
@@ -7,10 +7,14 @@ export default function PhotoSlots({
   currentRetakeIndex,
   onRetakeSlot,
   isSessionRunning,
+  allSlotsFilled = false,
+  isComplete = false,
+  onGoToEditor,
 }) {
-  const filledCount = photos.filter(Boolean).length;
+  const filledCount = photos ? photos.filter(Boolean).length : 0;
   const hasAnyPhoto = filledCount > 0;
   const isRetakeMode = currentRetakeIndex !== null;
+  const isAllFilled = allSlotsFilled || isComplete || (photoCount > 0 && filledCount === photoCount);
 
   const getGridColsClass = () => {
     if (photoCount === 1) return 'grid-cols-1 max-w-[220px] mx-auto';
@@ -21,6 +25,7 @@ export default function PhotoSlots({
 
   return (
     <div className="space-y-3">
+      {/* Header Slot Status */}
       <div className="flex items-center justify-between">
         <label className="text-xs font-bold uppercase tracking-wider text-stone-600 flex items-center gap-1.5">
           <Images className="w-3.5 h-3.5 text-stone-700" />
@@ -33,13 +38,14 @@ export default function PhotoSlots({
         </span>
       </div>
 
+      {/* Grid Thumbnail Foto */}
       <div className={`grid ${getGridColsClass()} gap-2.5`}>
         {Array.from({ length: photoCount }).map((_, index) => {
           const photo = photos[index];
           const isSelectedTarget = currentRetakeIndex === index;
 
           // 1. Jika slot memiliki foto dan BUKAN target yang sedang difoto ulang:
-          // Selalu tampilkan fotonya secara utuh (tidak boleh menghilang saat sesi foto berjalan)
+          // Tampilkan fotonya secara utuh dengan tombol ulangi yang proporsional
           if (photo && !isSelectedTarget) {
             return (
               <button
@@ -47,10 +53,10 @@ export default function PhotoSlots({
                 type="button"
                 disabled={isSessionRunning}
                 onClick={() => onRetakeSlot(index)}
-                className={`relative aspect-[4/3] rounded-2xl overflow-hidden border-2 border-stone-800 bg-stone-900 transition-all flex items-center justify-center text-left select-none ${
+                className={`group relative aspect-[4/3] rounded-2xl overflow-hidden border-2 border-stone-800 bg-stone-900 transition-all flex items-center justify-center text-left select-none ${
                   isSessionRunning
                     ? 'cursor-not-allowed opacity-90'
-                    : 'shadow-xs hover:border-amber-600 cursor-pointer active:scale-[0.98]'
+                    : 'shadow-xs hover:border-amber-500 cursor-pointer active:scale-[0.98]'
                 }`}
               >
                 <img
@@ -59,17 +65,17 @@ export default function PhotoSlots({
                   className="w-full h-full object-cover pointer-events-none"
                 />
                 
-                {/* Badge Nomor Slot */}
+                {/* Badge Nomor Slot di Kiri Atas */}
                 <div className="absolute top-1.5 left-1.5 bg-stone-900/85 backdrop-blur-xs text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 border border-stone-700 shadow-2xs pointer-events-none">
                   <Check className="w-2.5 h-2.5 text-emerald-400" />
                   <span>#{index + 1}</span>
                 </div>
 
-                {/* Tombol Ulangi: Muncul saat standby, dinonaktifkan saat kamera sedang menjepret */}
+                {/* Tombol Ulangi: Ditempatkan di bagian bawah dengan gradien tipis agar tidak menutupi wajah */}
                 {!isSessionRunning && (
-                  <div className="absolute inset-x-0 bottom-0 p-1.5 bg-gradient-to-t from-stone-950/80 via-stone-900/40 to-transparent flex items-center justify-center pointer-events-none">
-                    <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-white/95 text-stone-900 text-[10px] font-bold shadow-xs">
-                      <RotateCcw className="w-3 h-3 text-stone-800" />
+                  <div className="absolute inset-x-0 bottom-0 pt-3 pb-1.5 px-1 bg-gradient-to-t from-stone-950/70 via-stone-950/20 to-transparent flex items-center justify-center pointer-events-none">
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/95 text-stone-900 text-[9px] sm:text-[10px] font-bold shadow-xs">
+                      <RotateCcw className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-stone-800" />
                       <span>Ulangi</span>
                     </div>
                   </div>
@@ -129,7 +135,7 @@ export default function PhotoSlots({
             );
           }
 
-          // 3. Slot kosong (belum difoto): Selalu berstatus pasif dan tidak dapat diakses untuk foto ulang
+          // 3. Slot kosong (belum difoto): Selalu berstatus pasif
           return (
             <div
               key={index}
@@ -147,6 +153,25 @@ export default function PhotoSlots({
           );
         })}
       </div>
+
+      {/* Primary CTA: Muncul saat seluruh slot foto sudah terisi lengkap */}
+      {isAllFilled && !isSessionRunning && onGoToEditor && (
+        <div className="pt-2.5 space-y-2.5 border-t border-stone-200/80 animate-slide-up">
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-stone-100 border border-stone-200/90 text-stone-700 text-xs">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span className="font-medium leading-tight">Semua foto siap! Periksa atau klik tombol di bawah untuk mengedit.</span>
+          </div>
+          
+          <button
+            type="button"
+            onClick={onGoToEditor}
+            className="w-full min-h-[50px] sm:min-h-[52px] bg-stone-900 hover:bg-stone-800 active:scale-[0.98] text-white font-bold py-3.5 px-5 rounded-2xl shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base transition cursor-pointer"
+          >
+            <span>Lanjut Kustomisasi</span>
+            <ArrowRight className="w-4 h-4 text-stone-300" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

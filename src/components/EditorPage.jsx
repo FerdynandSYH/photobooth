@@ -801,7 +801,7 @@ export default function EditorPage({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-5 animate-fade-in">
+    <div className="w-full max-w-6xl mx-auto space-y-5 pb-10 sm:pb-12 animate-fade-in">
 
       {/* Header Bar with Back Button */}
       <div className="flex items-center justify-between border-b border-[#E7E2DA] pb-4">
@@ -831,12 +831,12 @@ export default function EditorPage({
               setIsSelected(false);
             }
           }}
-          className="lg:col-span-6 flex flex-col items-center justify-center bg-white border border-[#E7E2DA] rounded-3xl p-3 sm:p-5 shadow-sm sticky top-14 sm:top-16 lg:top-24 z-20"
+          className="lg:col-span-6 flex flex-col items-center justify-center bg-white border border-[#E7E2DA] rounded-3xl p-3 sm:p-5 shadow-sm relative lg:sticky lg:top-20 z-10 lg:z-20"
         >
 
-          {/* 1. Jika canAdjust belum aktif: Tampilkan Banner Ajak Coba Fitur Geser yang Menarik & Lucu */}
+          {/* 1. Jika canAdjust belum aktif: Tampilkan Banner Ajak Coba Fitur Geser yang Menarik (Khusus Layar Desktop lg:) */}
           {!canAdjust && (
-            <div className="w-full mb-3 p-3 sm:p-3.5 bg-gradient-to-r from-amber-50/90 via-[#FAF7F2] to-orange-50/70 border border-amber-200/80 rounded-2xl shadow-xs">
+            <div className="hidden lg:block w-full mb-3 p-3 sm:p-3.5 bg-gradient-to-r from-amber-50/90 via-[#FAF7F2] to-orange-50/70 border border-amber-200/80 rounded-2xl shadow-xs">
               <div className="flex items-start gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-300/80 text-amber-900 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-2xs">
                   <Sparkles className="w-4 h-4 text-amber-700" />
@@ -881,9 +881,9 @@ export default function EditorPage({
             </div>
           )}
 
-          {/* 2. Jika canAdjust sudah aktif dan showDragTip aktif: Tampilkan Banner Info Seret Foto */}
+          {/* 2. Jika canAdjust sudah aktif dan showDragTip aktif: Tampilkan Banner Info Seret Foto (Khusus Layar Desktop lg:) */}
           {canAdjust && showDragTip && (
-            <div className="w-full mb-2.5 p-2.5 sm:p-3 bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 text-white rounded-2xl shadow-md border border-stone-700/60 animate-fade-in">
+            <div className="hidden lg:block w-full mb-2.5 p-2.5 sm:p-3 bg-gradient-to-r from-stone-900 via-stone-800 to-stone-900 text-white rounded-2xl shadow-md border border-stone-700/60 animate-fade-in">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center flex-shrink-0">
@@ -1112,7 +1112,7 @@ export default function EditorPage({
             >
               <canvas
                 ref={canvasRef}
-                className="rounded-2xl shadow-xl max-w-full h-auto object-contain block max-h-[38dvh] sm:max-h-[52dvh] lg:max-h-[76dvh]"
+                className="rounded-2xl shadow-xl max-w-full h-auto object-contain block max-h-[42dvh] sm:max-h-[50dvh] lg:max-h-[74dvh]"
                 style={{
                   boxShadow: '0 20px 40px -10px rgba(41, 37, 36, 0.25)',
                 }}
@@ -1246,42 +1246,51 @@ export default function EditorPage({
             </div>
           </div>
 
-          {/* Panduan Gestur Interaktif yang Menarik & Lucu */}
+          {/* Panduan Gestur Interaktif: Desktop Card & Mobile Micro-Hint Ringkas */}
           {canAdjust && (
-            <div className="w-full mt-3 bg-gradient-to-r from-[#FFFDF9] via-[#FAF6F0] to-[#F5ECE1] border border-[#E7DFD3] rounded-2xl p-3 shadow-2xs">
-              <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-stone-200/60 text-xs">
-                <span className="font-bold text-stone-900 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Cara Atur Posisi Foto Sesukamu</span>
-                </span>
-                <span className="text-[10px] text-stone-500 font-serif italic">
-                  Sentuh langsung di kanvas
-                </span>
+            <>
+              {/* Desktop / Tablet View (lg:block): Card Lengkap */}
+              <div className="hidden lg:block w-full mt-3 bg-gradient-to-r from-[#FFFDF9] via-[#FAF6F0] to-[#F5ECE1] border border-[#E7DFD3] rounded-2xl p-3 shadow-2xs">
+                <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-stone-200/60 text-xs">
+                  <span className="font-bold text-stone-900 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Cara Atur Posisi Foto Sesukamu</span>
+                  </span>
+                  <span className="text-[10px] text-stone-500 font-serif italic">
+                    Sentuh langsung di kanvas
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-white/85 p-2 rounded-xl border border-stone-200/60 shadow-2xs">
+                    <div className="flex items-center justify-center gap-1 font-bold text-stone-900 mb-0.5 text-xs">
+                      <Move className="w-3.5 h-3.5 text-stone-700" />
+                      <span>Geser</span>
+                    </div>
+                    <p className="text-[10px] text-stone-500">1 Jari / Drag foto ke mana aja</p>
+                  </div>
+                  <div className="bg-white/85 p-2 rounded-xl border border-stone-200/60 shadow-2xs">
+                    <div className="flex items-center justify-center gap-1 font-bold text-stone-900 mb-0.5 text-xs">
+                      <ZoomIn className="w-3.5 h-3.5 text-stone-700" />
+                      <span>Ukuran</span>
+                    </div>
+                    <p className="text-[10px] text-stone-500">Cubit / Tarik bulatan sudut</p>
+                  </div>
+                  <div className="bg-white/85 p-2 rounded-xl border border-stone-200/60 shadow-2xs">
+                    <div className="flex items-center justify-center gap-1 font-bold text-stone-900 mb-0.5 text-xs">
+                      <RotateCw className="w-3.5 h-3.5 text-stone-700" />
+                      <span>Putar</span>
+                    </div>
+                    <p className="text-[10px] text-stone-500">Putar 2 jari / Tarik tombol atas</p>
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-white/85 p-2 rounded-xl border border-stone-200/60 shadow-2xs">
-                  <div className="flex items-center justify-center gap-1 font-bold text-stone-900 mb-0.5 text-xs">
-                    <Move className="w-3.5 h-3.5 text-stone-700" />
-                    <span>Geser</span>
-                  </div>
-                  <p className="text-[10px] text-stone-500">1 Jari / Drag foto ke mana aja</p>
-                </div>
-                <div className="bg-white/85 p-2 rounded-xl border border-stone-200/60 shadow-2xs">
-                  <div className="flex items-center justify-center gap-1 font-bold text-stone-900 mb-0.5 text-xs">
-                    <ZoomIn className="w-3.5 h-3.5 text-stone-700" />
-                    <span>Ukuran</span>
-                  </div>
-                  <p className="text-[10px] text-stone-500">Cubit / Tarik bulatan sudut</p>
-                </div>
-                <div className="bg-white/85 p-2 rounded-xl border border-stone-200/60 shadow-2xs">
-                  <div className="flex items-center justify-center gap-1 font-bold text-stone-900 mb-0.5 text-xs">
-                    <RotateCw className="w-3.5 h-3.5 text-stone-700" />
-                    <span>Putar</span>
-                  </div>
-                  <p className="text-[10px] text-stone-500">Putar 2 jari / Tarik tombol atas</p>
-                </div>
+
+              {/* Mobile View (< lg): Micro-hint 1 baris ringkas hemat ruang */}
+              <div className="lg:hidden w-full mt-2 pt-2 border-t border-stone-100 flex items-center justify-center gap-1.5 text-[11px] text-stone-500 font-medium">
+                <Move className="w-3 h-3 text-stone-400 flex-shrink-0" />
+                <span>Sentuh foto untuk geser, cubit untuk ukuran, putar tombol atas</span>
               </div>
-            </div>
+            </>
           )}
         </div>
 

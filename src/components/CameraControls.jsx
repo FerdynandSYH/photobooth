@@ -1,5 +1,5 @@
 import React from 'react';
-import { Camera, FlipHorizontal, SwitchCamera, Timer, Volume2, VolumeX } from 'lucide-react';
+import { Camera, FlipHorizontal, SwitchCamera, Timer, Volume2, VolumeX, RotateCcw } from 'lucide-react';
 
 export default function CameraControls({
   timerSeconds,
@@ -25,9 +25,24 @@ export default function CameraControls({
   ];
 
   const filledCount = photos ? photos.filter(Boolean).length : 0;
-  const remainingCount = Math.max(0, photoCount - filledCount);
-  const nextSlotNumber = currentRetakeIndex !== null ? currentRetakeIndex + 1 : Math.min(filledCount + 1, photoCount);
   const isRetakingSingle = currentRetakeIndex !== null;
+  const nextSlotNumber = currentRetakeIndex !== null ? currentRetakeIndex + 1 : Math.min(filledCount + 1, photoCount);
+
+  // Helper untuk menentukan visual hierarchy tombol aksi utama
+  const getActionButtonClass = () => {
+    if (isSessionRunning) {
+      return 'bg-stone-200 text-stone-400 border border-stone-200 cursor-not-allowed shadow-none';
+    }
+    if (isRetakingSingle) {
+      return 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20 ring-2 ring-amber-400/50 cursor-pointer active:scale-[0.98]';
+    }
+    if (allSlotsFilled) {
+      // Secondary/Subtle: Mengurangi risiko salah pencet & tidak menyaingi Primary CTA "Lanjut Kustomisasi"
+      return 'bg-white hover:bg-stone-50 border border-stone-300 hover:border-stone-400 text-stone-700 hover:text-stone-900 shadow-2xs cursor-pointer active:scale-[0.98]';
+    }
+    // Default Primary: Pengambilan foto sesi normal
+    return 'bg-stone-900 hover:bg-stone-800 text-white shadow-stone-900/10 cursor-pointer active:scale-[0.98]';
+  };
 
   return (
     <div className="w-full bg-white border border-[#E7E2DA] rounded-2xl p-3 sm:p-4 shadow-sm space-y-3.5">
@@ -43,6 +58,7 @@ export default function CameraControls({
           {timerOptions.map(opt => (
             <button
               key={opt.value}
+              type="button"
               disabled={isSessionRunning}
               onClick={() => setTimerSeconds(opt.value)}
               className={`min-h-[42px] min-w-[38px] px-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center ${
@@ -60,6 +76,7 @@ export default function CameraControls({
         <div className="flex items-center gap-1.5 ml-auto">
           {/* Mirror toggle */}
           <button
+            type="button"
             onClick={onToggleMirror}
             title={isMirror ? 'Mirror: Aktif' : 'Mirror: Nonaktif'}
             className={`min-h-[44px] min-w-[44px] p-2.5 rounded-2xl text-xs font-semibold border transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
@@ -74,6 +91,7 @@ export default function CameraControls({
 
           {/* Switch Camera (mobile/multiple devices) */}
           <button
+            type="button"
             onClick={onSwitchCamera}
             disabled={isSessionRunning}
             title="Ganti Kamera Depan/Belakang"
@@ -98,18 +116,13 @@ export default function CameraControls({
         </div>
       </div>
 
-      {/* Main Snap / Start Button */}
+      {/* Main Snap / Start Action Button */}
       <div>
         <button
+          type="button"
           onClick={onStartSession}
           disabled={isSessionRunning}
-          className={`w-full min-h-[54px] sm:min-h-[58px] py-3.5 px-6 rounded-2xl font-bold text-white shadow-md flex items-center justify-center gap-2.5 transition active:scale-[0.98] cursor-pointer text-sm sm:text-base ${
-            isSessionRunning
-              ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
-              : isRetakingSingle
-              ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20 ring-2 ring-amber-400/50'
-              : 'bg-stone-900 hover:bg-stone-800 shadow-stone-900/10'
-          }`}
+          className={`w-full min-h-[52px] sm:min-h-[56px] py-3.5 px-6 rounded-2xl font-bold transition flex items-center justify-center gap-2.5 text-sm sm:text-base ${getActionButtonClass()}`}
         >
           {isSessionRunning ? (
             <span className="flex items-center gap-2">
@@ -120,20 +133,28 @@ export default function CameraControls({
                   : `Hitung Mundur Slot #${nextSlotNumber}...`}
               </span>
             </span>
+          ) : isRetakingSingle ? (
+            <>
+              <Camera className="w-5 h-5 text-white" />
+              <span>Ambil Ulang Foto (Slot #{nextSlotNumber})</span>
+              <span className="bg-amber-700 text-amber-100 text-xs px-2.5 py-1 rounded-full font-semibold">
+                Ulang #{nextSlotNumber}
+              </span>
+            </>
+          ) : allSlotsFilled ? (
+            <>
+              <RotateCcw className="w-4 h-4 text-stone-500" />
+              <span className="font-semibold text-stone-700">Foto Ulang Seluruh Sesi</span>
+              <span className="bg-stone-100 text-stone-500 text-xs px-2.5 py-0.5 rounded-full font-medium border border-stone-200">
+                Reset Semua
+              </span>
+            </>
           ) : (
             <>
               <Camera className="w-5 h-5 text-stone-200" />
-              <span>
-                {isRetakingSingle
-                  ? `Ambil Ulang Foto (Slot #${nextSlotNumber})`
-                  : allSlotsFilled
-                  ? 'Foto Ulang Seluruh Sesi'
-                  : `Ambil Foto (Slot #${nextSlotNumber} dari ${photoCount})`}
-              </span>
+              <span>Ambil Foto (Slot #${nextSlotNumber} dari ${photoCount})</span>
               <span className="bg-stone-800 text-stone-200 text-xs px-2.5 py-1 rounded-full font-semibold border border-stone-700">
-                {isRetakingSingle
-                  ? `Ulang #${nextSlotNumber}`
-                  : timerSeconds > 0
+                {timerSeconds > 0
                   ? `${timerSeconds}s • Slot ${filledCount}/${photoCount}`
                   : `Slot ${filledCount}/${photoCount}`}
               </span>
@@ -145,6 +166,8 @@ export default function CameraControls({
         <p className="mt-2 text-center text-[11px] text-stone-500 font-sans">
           {isRetakingSingle
             ? `Slot #${nextSlotNumber} siap difoto ulang. Silakan bersiap pose dan klik tombol kamera di atas saat Anda sudah siap.`
+            : allSlotsFilled
+            ? 'Semua slot sudah terisi. Tekan "Lanjut Kustomisasi" untuk mengedit foto, atau tombol di atas jika ingin mengulang sesi dari awal.'
             : timerSeconds === 0
             ? 'Mode Tanpa Timer: Menjepret 1 foto langsung tiap kali tombol ditekan.'
             : `Mode Timer ${timerSeconds}s: Hitung mundur dimulai tiap kali tombol ditekan. Setelah 1 foto selesai, kamera menunggu Anda siap sebelum foto berikutnya.`}
