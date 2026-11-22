@@ -375,21 +375,14 @@ export default function App() {
           {/* Logo & Brand Name */}
           <button
             onClick={handleBackToHome}
-            className="flex items-center gap-2.5 text-left group cursor-pointer"
+            className="flex items-center text-left group cursor-pointer transition-opacity hover:opacity-85 focus:outline-none"
+            title="GoPhotobooth — Kembali ke Beranda"
           >
             <img
               src="/logo.svg"
-              alt="GoPhotobooth Logo"
-              className="w-9 h-9 rounded-xl shadow-md group-hover:scale-105 transition-transform"
+              alt="GoPhotobooth"
+              className="h-8 sm:h-9 w-auto object-contain transition-transform duration-200 group-hover:scale-[1.02]"
             />
-            <div>
-              <h1 className="text-lg font-serif font-bold tracking-tight text-stone-900 leading-tight">
-                GoPhotobooth
-              </h1>
-              <p className="text-[10px] text-stone-500 font-medium tracking-wide uppercase">
-                Studio Foto Online
-              </p>
-            </div>
           </button>
 
           {/* Stepper Indicator */}
@@ -622,11 +615,24 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-[#E7E2DA] py-5 text-center text-xs text-stone-500 mt-auto bg-[#FAF7F2]">
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
-          <span className="font-serif font-medium text-stone-700">GoPhotobooth</span>
-          <span className="hidden sm:inline text-stone-300">•</span>
-          <span>Studio Photobooth Online Klasik &amp; Minimalis</span>
+      <footer className="border-t border-[#E7E2DA] py-6 text-center text-xs text-stone-500 mt-auto bg-[#FAF7F2]">
+        <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <button
+            onClick={handleBackToHome}
+            className="flex items-center cursor-pointer transition-opacity hover:opacity-80 focus:outline-none"
+            title="GoPhotobooth — Kembali ke Beranda"
+          >
+            <img
+              src="/logo.svg"
+              alt="GoPhotobooth"
+              className="h-6 sm:h-7 w-auto object-contain opacity-90 hover:opacity-100 transition-opacity"
+            />
+          </button>
+          <div className="flex items-center gap-2 text-stone-500">
+            <span>Studio Photobooth Online Klasik &amp; Minimalis</span>
+            <span className="text-stone-300">•</span>
+            <span>© {new Date().getFullYear()}</span>
+          </div>
         </div>
       </footer>
 

@@ -10,21 +10,16 @@ export default function LandingPage({ onStartPhoto }) {
         <div className="mb-6">
           <img
             src="/logo.svg"
-            alt="GoPhotobooth Logo"
-            className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl shadow-xl hover:scale-105 transition-transform duration-300"
+            alt="GoPhotobooth"
+            className="h-16 sm:h-20 md:h-24 w-auto object-contain hover:scale-105 transition-transform duration-300 drop-shadow-sm"
           />
         </div>
 
         {/* Minimalist Studio Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-stone-200/60 border border-stone-300/80 text-stone-700 text-xs font-semibold tracking-widest uppercase mb-6 shadow-sm">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-stone-200/60 border border-stone-300/80 text-stone-700 text-xs font-semibold tracking-widest uppercase mb-4 shadow-sm">
           <Camera className="w-3.5 h-3.5 text-stone-700" />
           <span>Studio Photobooth Online</span>
         </div>
-
-        {/* Brand Name */}
-        <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-stone-900 mb-4">
-          GoPhotobooth
-        </h1>
 
         {/* Catchy & Elegant Subtitle */}
         <p className="font-serif italic text-xl sm:text-2xl text-stone-600 mb-6 font-normal">
