@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Download, RotateCcw, ArrowLeft, Printer, Sparkles, CheckCircle2, Copy, Check, Ticket, Share2 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { saveOrSharePhoto, isMobileDevice } from '../utils/downloadHelper';
 
 export default function PrintingPage({
@@ -18,6 +19,26 @@ export default function PrintingPage({
 
   // Smooth paper emergence trajectory from -85% down to 0%
   const translateY = Math.min(0, -85 * (1 - (printProgress / 100)));
+
+  // Trigger celebration confetti & completion chime
+  const triggerCompletionEffects = () => {
+    if (!hasTriggeredComplete.current) {
+      hasTriggeredComplete.current = true;
+      if (audio?.playPrintComplete) {
+        audio.playPrintComplete();
+      }
+      try {
+        confetti({
+          particleCount: 90,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#292524', '#f59e0b', '#10b981', '#f43f5e', '#38bdf8', '#ffffff'],
+        });
+      } catch (e) {
+        // Fallback silently if canvas-confetti context is unavailable
+      }
+    }
+  };
 
   // Run the realistic photobooth paper emergence animation
   useEffect(() => {
@@ -47,19 +68,20 @@ export default function PrintingPage({
         requestAnimationFrame(animatePrint);
       } else {
         setIsPrinted(true);
-        if (!hasTriggeredComplete.current) {
-          hasTriggeredComplete.current = true;
-          // Play success chime ONLY when photo printing finishes 100%
-          if (audio?.playPrintComplete) {
-            audio.playPrintComplete();
-          }
-        }
+        triggerCompletionEffects();
       }
     };
 
     const rafId = requestAnimationFrame(animatePrint);
     return () => cancelAnimationFrame(rafId);
   }, [audio]);
+
+  // Skip animation button handler for instant result
+  const handleSkipAnimation = () => {
+    setPrintProgress(100);
+    setIsPrinted(true);
+    triggerCompletionEffects();
+  };
 
   // Handle saving to gallery (Native Web Share on Mobile) or direct download
   const handleSaveOrShare = async () => {
@@ -144,24 +166,37 @@ export default function PrintingPage({
               <span>PHOTO DISPENSER 35MM</span>
             </div>
 
-            {/* Progress Badge */}
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 ${
-              isPrinted
-                ? 'bg-stone-900 text-white border-stone-900 shadow-2xs'
-                : 'bg-stone-100 text-stone-700 border-stone-300'
-            }`}>
-              {isPrinted ? (
-                <>
-                  <CheckCircle2 className="w-3 h-3 text-stone-200" />
-                  <span>Cetak Selesai 100%</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-3 h-3 text-stone-600 animate-spin" />
-                  <span>Memproses {printProgress}%</span>
-                </>
+            {/* Progress Badge & Skip Option */}
+            <div className="flex items-center gap-1.5">
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 ${
+                isPrinted
+                  ? 'bg-stone-900 text-white border-stone-900 shadow-2xs'
+                  : 'bg-stone-100 text-stone-700 border-stone-300'
+              }`}>
+                {isPrinted ? (
+                  <>
+                    <CheckCircle2 className="w-3 h-3 text-stone-200" />
+                    <span>Cetak Selesai 100%</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3 text-stone-600 animate-spin" />
+                    <span>Memproses {printProgress}%</span>
+                  </>
+                )}
+              </span>
+
+              {!isPrinted && (
+                <button
+                  type="button"
+                  onClick={handleSkipAnimation}
+                  className="text-[10px] font-bold text-stone-500 hover:text-stone-900 px-1.5 py-0.5 rounded hover:bg-stone-200/60 transition cursor-pointer"
+                  title="Lewati animasi pencetakan"
+                >
+                  Lewati
+                </button>
               )}
-            </span>
+            </div>
           </div>
 
           {/* Machine Paper Slot Bezel */}
@@ -235,97 +270,97 @@ export default function PrintingPage({
       {/* Action Buttons Section */}
       <div className="w-full max-w-md mx-auto space-y-4 pt-2">
         
-        {/* 1. BUTTON UNIK & MENARIK: Retro Studio Token / Stamp Ticket Button */}
+        {/* 1. HERO PRIMARY BUTTON: Simpan ke Galeri / Unduh Foto */}
         <div className="relative group">
-          {/* Subtle soft stone halo matching the cream background */}
-          <div className="absolute -inset-0.5 bg-stone-300/40 rounded-3xl blur-sm opacity-50 group-hover:opacity-80 transition duration-300" />
+          {/* Soft halo matching cream background */}
+          <div className="absolute -inset-0.5 bg-amber-400/30 rounded-3xl blur-sm opacity-50 group-hover:opacity-80 transition duration-300" />
           
           <button
-            onClick={onStartNewSession}
+            onClick={handleSaveOrShare}
             type="button"
-            className="relative w-full bg-stone-900 hover:bg-stone-800 text-white rounded-2xl p-4 sm:p-5 shadow-[0_6px_0_#1c1917] hover:shadow-[0_2px_0_#1c1917] hover:translate-y-1 active:translate-y-1.5 active:shadow-none transition-all duration-150 border border-stone-700/80 flex items-center justify-between cursor-pointer overflow-hidden group"
+            disabled={isSaving}
+            className="relative w-full bg-stone-900 hover:bg-stone-800 text-white rounded-2xl p-4 sm:p-5 shadow-[0_6px_0_#1c1917] hover:shadow-[0_2px_0_#1c1917] hover:translate-y-1 active:translate-y-1.5 active:shadow-none transition-all duration-150 border border-stone-700/80 flex items-center justify-between cursor-pointer overflow-hidden group disabled:opacity-85"
           >
             {/* Shimmer sweep effect */}
             <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
 
-            {/* Left: Token Icon with stone ring */}
+            {/* Left: Download/Save Icon with golden accent */}
             <div className="w-12 h-12 rounded-2xl bg-stone-800 border border-stone-700 flex items-center justify-center text-stone-100 flex-shrink-0 group-hover:scale-105 group-hover:rotate-3 transition-transform shadow-inner">
-              <Camera className="w-6 h-6 text-stone-200" />
+              <Download className={`w-6 h-6 text-amber-300 ${isSaving ? 'animate-bounce' : ''}`} />
             </div>
 
             {/* Center: Typography */}
             <div className="flex-1 px-4 text-left">
               <div className="flex items-center gap-1.5">
-                <Ticket className="w-3.5 h-3.5 text-stone-400" />
-                <span className="text-[10px] font-mono tracking-widest uppercase text-stone-400 font-bold">
-                  SESI PHOTOBOOTH BARU
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span className="text-[10px] font-mono tracking-widest uppercase text-amber-300 font-bold">
+                  {isMobile ? 'SIMPAN KE GALERI HP' : 'SIMPAN FOTO DIGITAL'}
                 </span>
               </div>
               <p className="text-base sm:text-lg font-serif font-bold text-white tracking-tight leading-tight">
-                Mulai Foto Sesi Baru
+                {isSaving ? 'Menyimpan Foto...' : (isMobile ? 'Simpan Foto ke Galeri' : 'Simpan / Unduh Foto')}
               </p>
-              <p className="text-[11px] text-stone-400 font-serif italic">
-                Masukkan koin studio &amp; ambil pose terbaikmu kembali
+              <p className="text-[11px] text-stone-300 font-sans">
+                {isMobile ? 'Tersimpan langsung ke Camera Roll HP Anda' : 'Unduh foto resolusi tinggi ke perangkat'}
               </p>
             </div>
 
             {/* Right: Circular Action Arrow */}
             <div className="w-9 h-9 rounded-full bg-stone-800 border border-stone-700/80 flex items-center justify-center text-stone-300 group-hover:bg-white group-hover:text-stone-900 transition-colors flex-shrink-0">
-              <RotateCcw className="w-4 h-4" />
+              <Share2 className="w-4 h-4" />
             </div>
           </button>
         </div>
 
-        {/* 2. Secondary Utility Actions: Simpan ke Galeri / Unduh / Salin Gambar */}
+        {/* 2. Secondary Utility Actions: Unduh File (.PNG) & Salin ke Clipboard */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          <button
-            onClick={handleSaveOrShare}
-            type="button"
-            disabled={isSaving}
-            className="flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-semibold shadow-sm hover:shadow active:scale-95 transition cursor-pointer disabled:opacity-75"
-          >
-            <Share2 className={`w-4 h-4 text-stone-200 ${isSaving ? 'animate-spin' : ''}`} />
-            <span>{isSaving ? 'Memproses...' : (isMobile ? 'Simpan ke Galeri / Bagikan' : 'Simpan / Bagikan Foto')}</span>
-          </button>
-
           <button
             onClick={handleForceDownload}
             type="button"
             disabled={isSaving}
-            className="flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-white hover:bg-stone-50 text-stone-800 text-xs sm:text-sm font-semibold border border-stone-300 shadow-2xs hover:border-stone-400 active:scale-95 transition cursor-pointer disabled:opacity-75"
+            className="min-h-[46px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white hover:bg-stone-50 text-stone-800 text-xs sm:text-sm font-semibold border border-stone-300 shadow-2xs hover:border-stone-400 active:scale-95 transition cursor-pointer disabled:opacity-75"
           >
             <Download className="w-4 h-4 text-stone-600" />
             <span>Unduh File (.PNG)</span>
           </button>
-        </div>
 
-        {/* Salin Gambar ke Clipboard */}
-        <div className="flex justify-center pt-1">
           <button
             onClick={handleCopyImage}
             type="button"
-            className="inline-flex items-center justify-center gap-1.5 text-xs text-stone-600 hover:text-stone-900 font-semibold transition cursor-pointer py-1.5 px-3 rounded-lg hover:bg-stone-200/50"
+            className="min-h-[46px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white hover:bg-stone-50 text-stone-800 text-xs sm:text-sm font-semibold border border-stone-300 shadow-2xs hover:border-stone-400 active:scale-95 transition cursor-pointer"
           >
             {isCopied ? (
               <>
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <Check className="w-4 h-4 text-emerald-600" />
                 <span className="text-emerald-700 font-bold">Foto Berhasil Disalin!</span>
               </>
             ) : (
               <>
-                <Copy className="w-3.5 h-3.5 text-stone-500" />
-                <span>Salin Gambar ke Clipboard</span>
+                <Copy className="w-4 h-4 text-stone-500" />
+                <span>Salin ke Clipboard</span>
               </>
             )}
           </button>
         </div>
 
-        {/* 3. Kembali ke Pengaturan Editor */}
-        <div className="text-center pt-2">
+        {/* 3. Mulai Sesi Baru (Secondary Action) */}
+        <div className="pt-2 border-t border-stone-200/80">
+          <button
+            onClick={onStartNewSession}
+            type="button"
+            className="w-full min-h-[46px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-stone-100 hover:bg-stone-200/80 text-stone-700 hover:text-stone-900 text-xs sm:text-sm font-bold transition active:scale-95 cursor-pointer border border-stone-200"
+          >
+            <Camera className="w-4 h-4 text-stone-600" />
+            <span>Mulai Foto Sesi Baru</span>
+          </button>
+        </div>
+
+        {/* 4. Kembali ke Pengaturan Editor */}
+        <div className="text-center pt-1">
           <button
             onClick={onBackToEditor}
             type="button"
-            className="inline-flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-800 font-semibold underline underline-offset-4 transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-800 font-semibold underline underline-offset-4 transition cursor-pointer py-1.5"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Kembali ke Studio Edit (Ubah Filter / Background)</span>

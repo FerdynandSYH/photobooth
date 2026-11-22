@@ -38,9 +38,9 @@ export default function CameraView({
           </p>
           <button
             onClick={onRetryCamera}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-stone-900 font-semibold text-xs transition shadow-md hover:bg-stone-100 cursor-pointer"
+            className="min-h-[44px] flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white text-stone-900 font-bold text-xs transition shadow-md hover:bg-stone-100 active:scale-95 cursor-pointer"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className="w-4 h-4" />
             <span>Coba Lagi</span>
           </button>
         </div>
@@ -57,9 +57,9 @@ export default function CameraView({
           </p>
           <button
             onClick={onRetryCamera}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-stone-900 font-semibold text-xs transition shadow-md hover:bg-stone-100 cursor-pointer"
+            className="min-h-[44px] flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white text-stone-900 font-bold text-xs transition shadow-md hover:bg-stone-100 active:scale-95 cursor-pointer"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className="w-4 h-4" />
             <span>Muat Ulang Kamera</span>
           </button>
         </div>
@@ -75,29 +75,29 @@ export default function CameraView({
       {/* Progress Badge (e.g. Foto 1 dari 4) */}
       {sessionProgress.active && (
         <div className="absolute top-3 left-3 z-20">
-          <div className="bg-stone-900/90 backdrop-blur-md text-white text-[11px] font-bold px-3 py-1 rounded-full shadow-md flex items-center gap-1.5 border border-stone-700 animate-pulse">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          <div className="bg-stone-900/90 backdrop-blur-md text-white text-[11px] font-bold px-3 py-1.5 rounded-full shadow-md flex items-center gap-1.5 border border-stone-700">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
             <span>Foto {sessionProgress.current} dari {sessionProgress.total}</span>
           </div>
         </div>
       )}
 
-      {/* Countdown & CHEESE! Cue Overlay (Translucent & Minimalist) */}
+      {/* Countdown & CHEESE! Cue Overlay (High Contrast & Legible) */}
       {countdown !== null && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 select-none pointer-events-none">
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 select-none pointer-events-none p-4">
           {countdown === 'CHEESE!' ? (
-            <div className="flex flex-col items-center gap-1.5 transform scale-105 animate-bounce">
-              <span className="px-5 py-1.5 sm:px-6 sm:py-2 rounded-2xl bg-black/40 backdrop-blur-xs border border-white/40 shadow-lg text-3xl sm:text-5xl font-black font-sans tracking-widest text-white uppercase drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
+            <div className="flex flex-col items-center gap-2 transform animate-scale-in">
+              <span className="px-6 py-2.5 sm:px-8 sm:py-3 rounded-2xl bg-stone-950/85 backdrop-blur-md border-2 border-amber-400 shadow-[0_0_35px_rgba(251,191,36,0.4)] text-3xl sm:text-5xl font-black font-sans tracking-widest text-amber-300 uppercase">
                 CHEESE!
               </span>
-              <span className="text-[10px] sm:text-[11px] font-mono font-semibold tracking-wider uppercase text-white/90 bg-black/30 px-3 py-0.5 rounded-full backdrop-blur-xs drop-shadow-sm">
+              <span className="text-[11px] sm:text-xs font-mono font-bold tracking-wider uppercase text-white bg-stone-900/90 px-4 py-1 rounded-full border border-white/20 backdrop-blur-md shadow-md">
                 Tersenyumlah ke Kamera
               </span>
             </div>
           ) : (
             <div
               key={countdown}
-              className="text-7xl sm:text-8xl font-black font-sans text-white/90 drop-shadow-[0_6px_16px_rgba(0,0,0,0.85)] animate-ping"
+              className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-stone-950/85 backdrop-blur-md border-3 border-white/90 shadow-[0_0_35px_rgba(0,0,0,0.7)] flex items-center justify-center text-5xl sm:text-6xl font-black font-sans text-white animate-scale-in"
             >
               {countdown}
             </div>

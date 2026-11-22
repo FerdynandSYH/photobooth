@@ -118,7 +118,7 @@ export default function GridSelectionPage({
         <button
           onClick={onBackToHome}
           type="button"
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-stone-700 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 transition active:scale-95 shadow-2xs cursor-pointer"
+          className="min-h-[44px] inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-stone-700 bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 transition active:scale-95 shadow-2xs cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 text-stone-600" />
           <span>Kembali ke Beranda</span>

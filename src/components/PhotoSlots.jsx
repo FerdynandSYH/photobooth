@@ -108,10 +108,10 @@ export default function PhotoSlots({
                       e.stopPropagation();
                       onRetakeSlot(null);
                     }}
-                    className="absolute top-1.5 right-1.5 z-10 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-stone-200/90 hover:bg-stone-300 active:scale-95 text-stone-700 text-[9px] font-bold transition cursor-pointer shadow-2xs pointer-events-auto"
+                    className="absolute top-1.5 right-1.5 z-20 inline-flex items-center justify-center gap-1 min-h-[34px] px-2.5 py-1 rounded-lg bg-stone-900 text-white hover:bg-stone-800 active:scale-95 text-[10px] font-bold transition cursor-pointer shadow-md pointer-events-auto"
                     title="Batalkan foto ulang"
                   >
-                    <X className="w-2.5 h-2.5" />
+                    <X className="w-3 h-3 text-stone-300" />
                     <span>Batal</span>
                   </button>
                 )}

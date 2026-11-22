@@ -11,11 +11,21 @@ import GridSelectionPage from './components/GridSelectionPage';
 import CapturePage from './components/CapturePage';
 import EditorPage from './components/EditorPage';
 import PrintingPage from './components/PrintingPage';
-import { Camera, SlidersHorizontal, ArrowLeft, Home, Printer, LayoutGrid } from 'lucide-react';
+import { Camera, SlidersHorizontal, ArrowLeft, Home, Printer, LayoutGrid, AlertTriangle, X } from 'lucide-react';
 
 export default function App() {
   // Navigation Flow: 'landing' -> 'grid' (Pilih Format Grid) -> 'capture' (Kamera) -> 'editor' (Kustomisasi) -> 'printing' (Cetak)
   const [currentStep, setCurrentStep] = useState('landing');
+
+  // Confirmation Modal State (Pencegahan Kehilangan Progres)
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmLabel: '',
+    isDestructive: false,
+    onConfirm: null,
+  });
 
   // Pastikan setiap pergantian halaman selalu mulai dari posisi paling atas (khususnya tampilan mobile)
   useEffect(() => {
@@ -250,6 +260,24 @@ export default function App() {
 
   // Reset sesi foto kembali ke awal (kembali memilih grid)
   const handleResetSession = () => {
+    const hasPhotos = Boolean(photos && photos.some(p => p !== null));
+    if (hasPhotos) {
+      setConfirmModal({
+        isOpen: true,
+        title: 'Mulai Sesi Baru?',
+        message: 'Memulai sesi baru akan mengatur ulang format dan foto yang ada. Pastikan Anda sudah menyimpan hasil cetak Anda.',
+        confirmLabel: 'Ya, Mulai Baru',
+        isDestructive: true,
+        onConfirm: () => {
+          camera.stopStream();
+          setPhotos(new Array(currentLayout.photoCount).fill(null));
+          resetEditorToDefault();
+          setCurrentStep('grid');
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        },
+      });
+      return;
+    }
     camera.stopStream();
     setPhotos(new Array(currentLayout.photoCount).fill(null));
     resetEditorToDefault();
@@ -289,20 +317,56 @@ export default function App() {
     setCurrentStep('capture');
   };
 
-  // Kembali dari kamera ke pemilihan format grid
+  // Kembali dari kamera ke pemilihan format grid (dengan proteksi foto hilang)
   const handleBackToGrid = () => {
+    const hasPhotos = Boolean(photos && photos.some(p => p !== null));
+    if (hasPhotos) {
+      setConfirmModal({
+        isOpen: true,
+        title: 'Ganti Format Grid?',
+        message: 'Foto yang telah diambil akan terhapus jika Anda mengubah format grid. Yakin ingin kembali ke pemilihan grid?',
+        confirmLabel: 'Ya, Ganti Format',
+        isDestructive: true,
+        onConfirm: () => {
+          camera.stopStream();
+          setPhotos(new Array(currentLayout.photoCount).fill(null));
+          resetEditorToDefault();
+          setCurrentStep('grid');
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        },
+      });
+      return;
+    }
     camera.stopStream();
     setCurrentStep('grid');
   };
 
-  // Kembali ke beranda
+  // Kembali ke beranda (dengan proteksi foto hilang)
   const handleBackToHome = () => {
+    const hasPhotos = Boolean(photos && photos.some(p => p !== null));
+    if (hasPhotos && currentStep !== 'landing') {
+      setConfirmModal({
+        isOpen: true,
+        title: 'Kembali ke Beranda?',
+        message: 'Sesi studio Anda belum disimpan. Foto yang telah diambil akan terhapus jika kembali ke Beranda.',
+        confirmLabel: 'Ya, Ke Beranda',
+        isDestructive: true,
+        onConfirm: () => {
+          camera.stopStream();
+          setPhotos(new Array(currentLayout.photoCount).fill(null));
+          resetEditorToDefault();
+          setCurrentStep('landing');
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        },
+      });
+      return;
+    }
     camera.stopStream();
     setCurrentStep('landing');
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2] text-stone-800 flex flex-col font-sans transition-colors duration-300">
+    <div className="min-h-[100dvh] bg-[#FAF7F2] text-stone-800 flex flex-col font-sans transition-colors duration-300">
       
       {/* Top Navbar */}
       <header className="border-b border-[#E7E2DA] bg-[#FAF7F2]/90 backdrop-blur-md sticky top-0 z-40">
@@ -487,7 +551,6 @@ export default function App() {
               topStrip={topStrip}
               onChangeTopStrip={setTopStrip}
               onBackToCamera={() => {
-                resetEditorToDefault();
                 camera.startCamera();
                 setCurrentStep('capture');
               }}
@@ -507,6 +570,54 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Confirmation Modal for Progress Safety */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full border border-stone-200 shadow-2xl space-y-4 animate-scale-in">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-serif font-bold text-stone-900 text-base leading-snug">
+                  {confirmModal.title}
+                </h3>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 font-semibold">
+                  Konfirmasi Sesi
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-stone-600 leading-relaxed font-sans">
+              {confirmModal.message}
+            </p>
+
+            <div className="grid grid-cols-2 gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                className="min-h-[44px] px-4 py-2.5 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-bold transition active:scale-95 cursor-pointer flex items-center justify-center"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirmModal.onConfirm) confirmModal.onConfirm();
+                }}
+                className={`min-h-[44px] px-4 py-2.5 rounded-xl text-white text-xs font-bold transition active:scale-95 shadow-md cursor-pointer flex items-center justify-center ${
+                  confirmModal.isDestructive
+                    ? 'bg-rose-700 hover:bg-rose-800'
+                    : 'bg-stone-900 hover:bg-stone-800'
+                }`}
+              >
+                {confirmModal.confirmLabel || 'Lanjutkan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="border-t border-[#E7E2DA] py-5 text-center text-xs text-stone-500 mt-auto bg-[#FAF7F2]">

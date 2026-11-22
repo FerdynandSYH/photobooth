@@ -23,6 +23,7 @@ import {
   Shuffle,
   Check,
   Sliders,
+  Palette,
 } from 'lucide-react';
 import { FRAMES, FRAME_CATEGORIES } from '../constants/frames';
 import { BACKGROUNDS, BACKGROUND_CATEGORIES, BACKGROUND_RATIOS } from '../constants/backgrounds';
@@ -845,14 +846,14 @@ export default function EditorPage({
       <div className="flex items-center justify-between border-b border-[#E7E2DA] pb-4">
         <button
           onClick={onBackToCamera}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-stone-200 text-stone-700 hover:text-stone-900 hover:bg-stone-50 text-xs sm:text-sm font-semibold transition active:scale-95 shadow-2xs cursor-pointer"
+          className="min-h-[44px] flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-stone-200 text-stone-700 hover:text-stone-900 hover:bg-stone-50 text-xs sm:text-sm font-bold transition active:scale-95 shadow-2xs cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 text-stone-500" />
           <span>Kembali ke Kamera</span>
         </button>
 
         <div className="flex items-center gap-2 text-stone-800 font-serif font-bold text-sm sm:text-base">
-          <Sparkles className="w-4 h-4 text-stone-600" />
+          <Sparkles className="w-4 h-4 text-amber-600" />
           <span>Studio Kustomisasi &amp; Unduh</span>
         </div>
       </div>
@@ -869,7 +870,7 @@ export default function EditorPage({
               setIsSelected(false);
             }
           }}
-          className="lg:col-span-6 flex flex-col items-center justify-center bg-white border border-[#E7E2DA] rounded-3xl p-3 sm:p-5 shadow-sm static lg:sticky lg:top-24"
+          className="lg:col-span-6 flex flex-col items-center justify-center bg-white border border-[#E7E2DA] rounded-3xl p-3 sm:p-5 shadow-sm sticky top-14 sm:top-16 lg:top-24 z-20"
         >
 
           {/* 1. Jika canAdjust belum aktif: Tampilkan Banner Ajak Coba Fitur Geser yang Menarik & Lucu */}
@@ -1007,7 +1008,7 @@ export default function EditorPage({
               {/* Quick Actions (Zoom, Putar, Tukar Tumpukan, Reset) */}
               <div className="flex items-center gap-1">
                 {/* Tombol Ukuran Cepat */}
-                <div className="flex items-center bg-stone-100 rounded-lg p-0.5 border border-stone-200">
+                <div className="flex items-center bg-stone-100 rounded-xl p-1 border border-stone-200">
                   <button
                     type="button"
                     onClick={() => {
@@ -1019,11 +1020,11 @@ export default function EditorPage({
                       }
                     }}
                     title="Kecilkan Foto"
-                    className="w-6 h-6 rounded bg-white hover:bg-stone-50 text-stone-800 flex items-center justify-center font-bold text-xs shadow-2xs cursor-pointer active:scale-95"
+                    className="min-h-[34px] min-w-[34px] rounded-lg bg-white hover:bg-stone-50 text-stone-800 flex items-center justify-center font-bold text-xs shadow-2xs cursor-pointer active:scale-95"
                   >
                     -
                   </button>
-                  <span className="text-[10px] font-bold text-stone-700 px-1.5 select-none min-w-[32px] text-center">
+                  <span className="text-xs font-bold text-stone-700 px-2 select-none min-w-[36px] text-center">
                     {Math.round((activeStrip === 'strip1' ? (strip1Scale || 1) : (strip2Scale || 1)) * 100)}%
                   </span>
                   <button
@@ -1037,14 +1038,14 @@ export default function EditorPage({
                       }
                     }}
                     title="Besarkan Foto"
-                    className="w-6 h-6 rounded bg-white hover:bg-stone-50 text-stone-800 flex items-center justify-center font-bold text-xs shadow-2xs cursor-pointer active:scale-95"
+                    className="min-h-[34px] min-w-[34px] rounded-lg bg-white hover:bg-stone-50 text-stone-800 flex items-center justify-center font-bold text-xs shadow-2xs cursor-pointer active:scale-95"
                   >
                     +
                   </button>
                 </div>
 
                 {/* Tombol Putar Cepat */}
-                <div className="flex items-center bg-stone-100 rounded-lg p-0.5 border border-stone-200">
+                <div className="flex items-center bg-stone-100 rounded-xl p-1 border border-stone-200">
                   <button
                     type="button"
                     onClick={() => {
@@ -1056,11 +1057,11 @@ export default function EditorPage({
                       }
                     }}
                     title="Putar Kiri (-5°)"
-                    className="w-6 h-6 rounded bg-white hover:bg-stone-50 text-stone-800 flex items-center justify-center shadow-2xs cursor-pointer active:scale-95"
+                    className="min-h-[34px] min-w-[34px] rounded-lg bg-white hover:bg-stone-50 text-stone-800 flex items-center justify-center shadow-2xs cursor-pointer active:scale-95"
                   >
-                    <RotateCcw className="w-3 h-3" />
+                    <RotateCcw className="w-3.5 h-3.5" />
                   </button>
-                  <span className="text-[10px] font-bold text-stone-700 px-1 select-none min-w-[26px] text-center">
+                  <span className="text-xs font-bold text-stone-700 px-1.5 select-none min-w-[30px] text-center">
                     {activeStrip === 'strip1' ? (stripRotation || 0) : (strip2Rotation || 0)}°
                   </span>
                   <button
@@ -1074,9 +1075,9 @@ export default function EditorPage({
                       }
                     }}
                     title="Putar Kanan (+5°)"
-                    className="w-6 h-6 rounded bg-white hover:bg-stone-50 text-stone-800 flex items-center justify-center shadow-2xs cursor-pointer active:scale-95"
+                    className="min-h-[34px] min-w-[34px] rounded-lg bg-white hover:bg-stone-50 text-stone-800 flex items-center justify-center shadow-2xs cursor-pointer active:scale-95"
                   >
-                    <RotateCw className="w-3 h-3" />
+                    <RotateCw className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
@@ -1089,9 +1090,9 @@ export default function EditorPage({
                       onChangeTopStrip?.(topStrip === 'strip2' ? 'strip1' : 'strip2');
                     }}
                     title="Tukar posisi tumpukan foto (depan / belakang)"
-                    className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs flex items-center justify-center cursor-pointer transition shadow-2xs"
+                    className="min-h-[34px] min-w-[34px] p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs flex items-center justify-center cursor-pointer transition shadow-2xs active:scale-95"
                   >
-                    <Layers className="w-3.5 h-3.5 text-stone-700" />
+                    <Layers className="w-4 h-4 text-stone-700" />
                   </button>
                 )}
 
@@ -1111,9 +1112,9 @@ export default function EditorPage({
                     }
                   }}
                   title="Reset ukuran & orientasi strip ini"
-                  className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 cursor-pointer transition shadow-2xs"
+                  className="min-h-[34px] min-w-[34px] p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 cursor-pointer transition shadow-2xs active:scale-95 flex items-center justify-center"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
+                  <RefreshCw className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -1150,7 +1151,7 @@ export default function EditorPage({
             >
               <canvas
                 ref={canvasRef}
-                className="rounded-2xl shadow-xl max-w-full h-auto object-contain block max-h-[50vh] sm:max-h-[60vh] lg:max-h-[76vh]"
+                className="rounded-2xl shadow-xl max-w-full h-auto object-contain block max-h-[38dvh] sm:max-h-[52dvh] lg:max-h-[76dvh]"
                 style={{
                   boxShadow: '0 20px 40px -10px rgba(41, 37, 36, 0.25)',
                 }}
@@ -1336,6 +1337,37 @@ export default function EditorPage({
         {/* Kolom Kanan: Panel Kontrol Editor Berformat Dropdown (Collapsible Accordion) */}
         <div className="lg:col-span-6 space-y-3.5">
 
+          {/* Quick Category Navigation Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none py-0.5">
+            {[
+              { id: 'filter', label: 'Filter', icon: Wand2 },
+              { id: 'background', label: 'Latar', icon: Layers },
+              { id: 'frame', label: 'Bingkai', icon: Palette },
+              { id: 'text', label: 'Teks', icon: Type },
+              { id: 'layoutDuplicate', label: 'Duplikat', icon: Copy },
+            ].map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => {
+                  setOpenSections(prev => ({ ...prev, [cat.id]: true }));
+                  const targetEl = document.getElementById(`editor-section-${cat.id}`);
+                  if (targetEl) {
+                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }}
+                className={`min-h-[36px] inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer active:scale-95 ${
+                  openSections[cat.id]
+                    ? 'bg-stone-900 text-white shadow-xs'
+                    : 'bg-white border border-stone-200 text-stone-700 hover:bg-stone-100 hover:border-stone-300'
+                }`}
+              >
+                <cat.icon className="w-3.5 h-3.5" />
+                <span>{cat.label}</span>
+              </button>
+            ))}
+          </div>
+
           {/* Quick Header Controls: Buka Semua / Tutup Semua */}
           <div className="flex items-center justify-between px-1">
             <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500">
@@ -1361,7 +1393,7 @@ export default function EditorPage({
           </div>
 
           {/* 1. Dropdown: Filter Foto */}
-          <div className="bg-white border border-[#E7E2DA] rounded-2xl shadow-sm overflow-hidden transition-all">
+          <div id="editor-section-filter" className="bg-white border border-[#E7E2DA] rounded-2xl shadow-sm overflow-hidden transition-all scroll-mt-24">
             <button
               type="button"
               onClick={() => toggleSection('filter')}
@@ -1462,7 +1494,7 @@ export default function EditorPage({
           </div>
 
           {/* 2. Dropdown: Tata Letak & Duplikat Strip (Maks 2) */}
-          <div className="bg-white border border-[#E7E2DA] rounded-2xl shadow-sm overflow-hidden transition-all">
+          <div id="editor-section-layoutDuplicate" className="bg-white border border-[#E7E2DA] rounded-2xl shadow-sm overflow-hidden transition-all scroll-mt-24">
             <button
               type="button"
               onClick={() => toggleSection('layoutDuplicate')}
@@ -1649,7 +1681,7 @@ export default function EditorPage({
           </div>
 
           {/* 3. Dropdown: Latar Belakang & Rasio Kanvas */}
-          <div className="bg-white border border-[#E7E2DA] rounded-2xl shadow-sm overflow-hidden transition-all">
+          <div id="editor-section-background" className="bg-white border border-[#E7E2DA] rounded-2xl shadow-sm overflow-hidden transition-all scroll-mt-24">
             <button
               type="button"
               onClick={() => toggleSection('background')}
@@ -1880,7 +1912,7 @@ export default function EditorPage({
           </div>
 
           {/* 4. Dropdown: Warna & Gaya Frame Strip */}
-          <div className="bg-white border border-[#E7E2DA] rounded-2xl shadow-sm overflow-hidden transition-all">
+          <div id="editor-section-frame" className="bg-white border border-[#E7E2DA] rounded-2xl shadow-sm overflow-hidden transition-all scroll-mt-24">
             <button
               type="button"
               onClick={() => toggleSection('frame')}
@@ -1969,7 +2001,7 @@ export default function EditorPage({
           </div>
 
           {/* 5. Dropdown: Teks Caption & Tanggal */}
-          <div className="bg-white border border-[#E7E2DA] rounded-2xl shadow-sm overflow-hidden transition-all">
+          <div id="editor-section-text" className="bg-white border border-[#E7E2DA] rounded-2xl shadow-sm overflow-hidden transition-all scroll-mt-24">
             <button
               type="button"
               onClick={() => toggleSection('text')}
@@ -2122,6 +2154,28 @@ export default function EditorPage({
         </div>
 
       </div>
+
+      {/* Loading & Processing Modal for Ultra HD 300 DPI Export */}
+      {isExportingHD && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full border border-stone-200 shadow-2xl flex flex-col items-center text-center space-y-3.5 animate-scale-in">
+            <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 shadow-sm">
+              <Sparkles className="w-7 h-7 animate-spin text-amber-600" />
+            </div>
+            <div>
+              <h3 className="font-serif font-bold text-stone-900 text-base">
+                Memproses Ultra HD (300 DPI)
+              </h3>
+              <p className="text-xs text-stone-500 mt-1">
+                Merender strip foto resolusi tinggi dengan tekstur dan filter...
+              </p>
+            </div>
+            <div className="w-full bg-stone-100 rounded-full h-2 overflow-hidden border border-stone-200">
+              <div className="bg-stone-900 h-full w-2/3 animate-pulse rounded-full" />
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

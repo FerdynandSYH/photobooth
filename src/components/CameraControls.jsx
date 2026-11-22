@@ -30,26 +30,26 @@ export default function CameraControls({
   const isRetakingSingle = currentRetakeIndex !== null;
 
   return (
-    <div className="w-full bg-white border border-[#E7E2DA] rounded-2xl p-4 shadow-sm space-y-4">
+    <div className="w-full bg-white border border-[#E7E2DA] rounded-2xl p-3 sm:p-4 shadow-sm space-y-3.5">
       
       {/* Top Utility Row */}
-      <div className="flex items-center justify-between gap-2 border-b border-stone-200/80 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-200/80 pb-3">
         
         {/* Timer Selection */}
-        <div className="flex items-center gap-1.5 bg-stone-100 p-1 rounded-xl border border-stone-200">
-          <div className="text-stone-500 pl-2 pr-1">
-            <Timer className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-2xl border border-stone-200">
+          <div className="text-stone-500 pl-2 pr-1 flex items-center justify-center">
+            <Timer className="w-4 h-4" />
           </div>
           {timerOptions.map(opt => (
             <button
               key={opt.value}
               disabled={isSessionRunning}
               onClick={() => setTimerSeconds(opt.value)}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition ${
+              className={`min-h-[42px] min-w-[38px] px-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center ${
                 timerSeconds === opt.value
-                  ? 'bg-stone-900 text-white shadow-sm'
-                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200'
-              } ${isSessionRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  ? 'bg-stone-900 text-white shadow-xs'
+                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200 active:scale-95'
+              } ${isSessionRunning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               {opt.label}
             </button>
@@ -57,12 +57,12 @@ export default function CameraControls({
         </div>
 
         {/* Action Toggles: Mirror, Switch Cam, Audio */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 ml-auto">
           {/* Mirror toggle */}
           <button
             onClick={onToggleMirror}
             title={isMirror ? 'Mirror: Aktif' : 'Mirror: Nonaktif'}
-            className={`p-2 rounded-xl text-xs font-medium border transition flex items-center gap-1.5 cursor-pointer ${
+            className={`min-h-[44px] min-w-[44px] p-2.5 rounded-2xl text-xs font-semibold border transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
               isMirror
                 ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
                 : 'bg-stone-100 border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-200'
@@ -77,7 +77,7 @@ export default function CameraControls({
             onClick={onSwitchCamera}
             disabled={isSessionRunning}
             title="Ganti Kamera Depan/Belakang"
-            className="p-2 rounded-xl text-xs font-medium bg-stone-100 border border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-200 transition disabled:opacity-50 cursor-pointer"
+            className="min-h-[44px] min-w-[44px] p-2.5 rounded-2xl text-xs font-semibold bg-stone-100 border border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-200 transition disabled:opacity-50 cursor-pointer active:scale-95 flex items-center justify-center"
           >
             <SwitchCamera className="w-4 h-4" />
           </button>
@@ -87,7 +87,7 @@ export default function CameraControls({
             type="button"
             onClick={onToggleMute}
             title={isMuted ? 'Suara Dinonaktifkan (Klik untuk aktifkan)' : 'Suara Aktif (Klik untuk nonaktifkan)'}
-            className={`p-2 rounded-xl text-xs font-medium border transition cursor-pointer flex items-center justify-center ${
+            className={`min-h-[44px] min-w-[44px] p-2.5 rounded-2xl text-xs font-semibold border transition cursor-pointer active:scale-95 flex items-center justify-center ${
               isMuted
                 ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-2xs'
                 : 'bg-stone-100 border-stone-200 text-stone-700 hover:text-stone-900 hover:bg-stone-200'
@@ -103,7 +103,7 @@ export default function CameraControls({
         <button
           onClick={onStartSession}
           disabled={isSessionRunning}
-          className={`w-full py-3.5 px-6 rounded-xl font-bold text-white shadow-md flex items-center justify-center gap-2.5 transition active:scale-[0.98] cursor-pointer ${
+          className={`w-full min-h-[54px] sm:min-h-[58px] py-3.5 px-6 rounded-2xl font-bold text-white shadow-md flex items-center justify-center gap-2.5 transition active:scale-[0.98] cursor-pointer text-sm sm:text-base ${
             isSessionRunning
               ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
               : isRetakingSingle
@@ -130,7 +130,7 @@ export default function CameraControls({
                   ? 'Foto Ulang Seluruh Sesi'
                   : `Ambil Foto (Slot #${nextSlotNumber} dari ${photoCount})`}
               </span>
-              <span className="bg-stone-800 text-stone-200 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-stone-700">
+              <span className="bg-stone-800 text-stone-200 text-xs px-2.5 py-1 rounded-full font-semibold border border-stone-700">
                 {isRetakingSingle
                   ? `Ulang #${nextSlotNumber}`
                   : timerSeconds > 0
