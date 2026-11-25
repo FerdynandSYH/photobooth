@@ -82,22 +82,22 @@ export default function CameraView({
         </div>
       )}
 
-      {/* Countdown & CHEESE! Cue Overlay (High Contrast & Legible) */}
+      {/* Countdown & CHEESE! Cue Overlay (High Contrast & Legible, Translucent) */}
       {countdown !== null && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-20 select-none pointer-events-none p-4">
           {countdown === 'CHEESE!' ? (
-            <div className="flex flex-col items-center gap-2 transform animate-scale-in">
-              <span className="px-6 py-2.5 sm:px-8 sm:py-3 rounded-2xl bg-stone-950/85 backdrop-blur-md border-2 border-amber-400 shadow-[0_0_35px_rgba(251,191,36,0.4)] text-3xl sm:text-5xl font-black font-sans tracking-widest text-amber-300 uppercase">
+            <div className="flex flex-col items-center gap-1.5 transform animate-scale-in">
+              <span className="px-5 py-2 sm:px-7 sm:py-2.5 rounded-2xl bg-black/35 backdrop-blur-xs border border-amber-400/60 shadow-lg text-2xl sm:text-4xl font-black font-sans tracking-widest text-amber-300 drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] uppercase">
                 CHEESE!
               </span>
-              <span className="text-[11px] sm:text-xs font-mono font-bold tracking-wider uppercase text-white bg-stone-900/90 px-4 py-1 rounded-full border border-white/20 backdrop-blur-md shadow-md">
+              <span className="text-[10px] sm:text-[11px] font-mono font-bold tracking-wider uppercase text-white/90 bg-black/30 px-3 py-0.5 rounded-full border border-white/20 backdrop-blur-xs shadow-sm">
                 Tersenyumlah ke Kamera
               </span>
             </div>
           ) : (
             <div
               key={countdown}
-              className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-stone-950/85 backdrop-blur-md border-3 border-white/90 shadow-[0_0_35px_rgba(0,0,0,0.7)] flex items-center justify-center text-5xl sm:text-6xl font-black font-sans text-white animate-scale-in"
+              className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-black/25 backdrop-blur-xs border border-white/30 shadow-md flex items-center justify-center text-4xl sm:text-5xl font-black font-sans text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] animate-scale-in"
             >
               {countdown}
             </div>

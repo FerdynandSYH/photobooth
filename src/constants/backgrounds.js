@@ -8,6 +8,15 @@ export const BACKGROUND_CATEGORIES = [
 ];
 
 export const BACKGROUNDS = [
+  // 0. Default: Tanpa Background (Strip Saja)
+  {
+    id: 'none',
+    name: 'Tanpa Background',
+    badge: 'Strip Saja',
+    category: 'all',
+    type: 'none',
+    cssBackground: 'repeating-conic-gradient(#E7E5E4 0% 25%, #FFFFFF 0% 50%) 50% / 10px 10px',
+  },
   // 1. Koleksi Spesial & Velvet Leopard
   {
     id: 'split-velvet-leopard',
@@ -333,17 +342,9 @@ export const BACKGROUNDS = [
     bgValue: '#1C1917',
     cssBackground: '#1C1917',
   },
-  {
-    id: 'none',
-    name: 'Tanpa Background',
-    badge: 'Strip Saja',
-    category: 'minimal',
-    type: 'none',
-    cssBackground: 'repeating-conic-gradient(#E7E5E4 0% 25%, #FFFFFF 0% 50%) 50% / 12px 12px',
-  },
 ];
 
-export const DEFAULT_BACKGROUND = BACKGROUNDS.find(b => b.id === 'none') || BACKGROUNDS[BACKGROUNDS.length - 1]; // Default: Tanpa Background
+export const DEFAULT_BACKGROUND = BACKGROUNDS[0]; // Default: Tanpa Background
 
 export const BACKGROUND_RATIOS = [
   { id: 'auto', name: 'Otomatis', shortLabel: 'Auto', ratio: null, description: 'Rasio pas mengikuti strip foto' },

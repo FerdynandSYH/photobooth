@@ -26,6 +26,7 @@ import {
   Palette,
   Printer,
   ArrowRight,
+  Ban,
 } from 'lucide-react';
 import { FRAMES, FRAME_CATEGORIES } from '../constants/frames';
 import { BACKGROUNDS, BACKGROUND_CATEGORIES, BACKGROUND_RATIOS } from '../constants/backgrounds';
@@ -638,7 +639,9 @@ export default function EditorPage({
   const [bgCategory, setBgCategory] = useState('all');
   const displayedBackgrounds = useMemo(() => {
     if (bgCategory === 'all') return BACKGROUNDS;
-    return BACKGROUNDS.filter(b => b.category === bgCategory);
+    const noneBg = BACKGROUNDS.find(b => b.id === 'none');
+    const filtered = BACKGROUNDS.filter(b => b.category === bgCategory && b.id !== 'none');
+    return noneBg ? [noneBg, ...filtered] : filtered;
   }, [bgCategory]);
 
   const [frameCategory, setFrameCategory] = useState('all');
@@ -1716,13 +1719,14 @@ export default function EditorPage({
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 max-h-48 overflow-y-auto p-1">
                     {displayedBackgrounds.map((bg) => {
                       const isSelected = selectedBackground?.id === bg.id;
+                      const isNone = bg.id === 'none';
                       return (
                         <button
                           key={bg.id}
                           type="button"
                           onClick={() => handleSelectBackground(bg)}
                           title={bg.name}
-                          className={`h-14 rounded-xl border transition-all flex flex-col items-center justify-between p-1.5 overflow-hidden relative group cursor-pointer ${isSelected
+                          className={`h-16 rounded-xl border transition-all flex flex-col items-center justify-between p-1.5 overflow-hidden relative group cursor-pointer ${isSelected
                             ? 'ring-2 ring-stone-900 scale-105 border-transparent shadow-md'
                             : 'border-stone-300 hover:scale-105 hover:border-stone-400'
                             }`}
@@ -1732,7 +1736,13 @@ export default function EditorPage({
                             <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-stone-900 ring-2 ring-white shadow-2xs z-10" />
                           )}
 
-                          <div className="mt-auto w-full bg-black/65 backdrop-blur-xs rounded px-1 py-0.5 text-center">
+                          {isNone ? (
+                            <div className="flex-1 flex flex-col items-center justify-center my-auto">
+                              <Ban className="w-5 h-5 text-stone-700 group-hover:scale-110 transition-transform" />
+                            </div>
+                          ) : null}
+
+                          <div className={`mt-auto w-full ${isNone ? 'bg-stone-900/80' : 'bg-black/65'} backdrop-blur-xs rounded px-1 py-0.5 text-center`}>
                             <p className="text-[9px] text-white font-bold truncate leading-tight">
                               {bg.name}
                             </p>

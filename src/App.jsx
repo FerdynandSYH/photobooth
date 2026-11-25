@@ -181,11 +181,11 @@ export default function App() {
     let targetIndex = currentRetakeIndex !== null ? currentRetakeIndex : photos.findIndex(p => p === null);
     let basePhotos = [...photos];
 
-    // Jika seluruh slot sebelumnya sudah penuh terisi, foto ulang dimulai dari slot pertama
+    // Jika seluruh slot sebelumnya sudah penuh terisi dan user belum memilih slot mana yang ingin diulang:
+    // Jangan langsung memotret! Tandai slot #1 untuk diulang terlebih dahulu agar user siap berpose
     if (targetIndex === -1) {
-      resetEditorToDefault();
-      basePhotos = new Array(targetCount).fill(null);
-      targetIndex = 0;
+      handleRetakeSlot(0);
+      return;
     }
 
     setIsSessionRunning(true);

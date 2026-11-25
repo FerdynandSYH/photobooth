@@ -11,6 +11,7 @@ export default function CameraControls({
   isMuted,
   onToggleMute,
   onStartSession,
+  onRetakeSlot,
   isSessionRunning,
   photos,
   photoCount,
@@ -120,7 +121,15 @@ export default function CameraControls({
       <div>
         <button
           type="button"
-          onClick={onStartSession}
+          onClick={() => {
+            if (allSlotsFilled && !isRetakingSingle) {
+              if (onRetakeSlot) {
+                onRetakeSlot(0);
+              }
+              return;
+            }
+            onStartSession();
+          }}
           disabled={isSessionRunning}
           className={`w-full min-h-[52px] sm:min-h-[56px] py-3.5 px-6 rounded-2xl font-bold transition flex items-center justify-center gap-2.5 text-sm sm:text-base ${getActionButtonClass()}`}
         >
@@ -143,10 +152,10 @@ export default function CameraControls({
             </>
           ) : allSlotsFilled ? (
             <>
-              <RotateCcw className="w-4 h-4 text-stone-500" />
-              <span className="font-semibold text-stone-700">Foto Ulang Seluruh Sesi</span>
-              <span className="bg-stone-100 text-stone-500 text-xs px-2.5 py-0.5 rounded-full font-medium border border-stone-200">
-                Reset Semua
+              <RotateCcw className="w-4 h-4 text-stone-700" />
+              <span className="font-bold text-stone-800">Pilih Slot Foto yang Ingin Diulang</span>
+              <span className="bg-stone-200 text-stone-700 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-stone-300">
+                Pilih Slot
               </span>
             </>
           ) : (
@@ -167,7 +176,7 @@ export default function CameraControls({
           {isRetakingSingle
             ? `Slot #${nextSlotNumber} siap difoto ulang. Silakan bersiap pose dan klik tombol kamera di atas saat Anda sudah siap.`
             : allSlotsFilled
-            ? 'Semua slot sudah terisi. Tekan "Lanjut Kustomisasi" untuk mengedit foto, atau tombol di atas jika ingin mengulang sesi dari awal.'
+            ? 'Semua slot sudah terisi. Klik foto di bawah untuk memilih slot yang ingin diulang, atau tekan tombol di atas untuk memilih slot #1.'
             : timerSeconds === 0
             ? 'Mode Tanpa Timer: Menjepret 1 foto langsung tiap kali tombol ditekan.'
             : `Mode Timer ${timerSeconds}s: Hitung mundur dimulai tiap kali tombol ditekan. Setelah 1 foto selesai, kamera menunggu Anda siap sebelum foto berikutnya.`}

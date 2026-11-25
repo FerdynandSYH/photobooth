@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { SHUTTER_SOUND_URI } from '../constants/shutterSound';
 
 /**
  * High-fidelity photobooth sound synthesizer.
@@ -73,36 +74,7 @@ function buildCheeseCueWav() {
   return encodeWAV(samples, SAMPLE_RATE);
 }
 
-// 3. Authentic SLR mechanical camera shutter sound
-function buildShutterWav() {
-  const duration = 0.22;
-  const samples = new Float32Array(Math.floor(SAMPLE_RATE * duration));
-  for (let i = 0; i < samples.length; i++) {
-    const t = i / SAMPLE_RATE;
-    let s = 0;
-    // White noise mechanical burst (curtain opening)
-    if (t < 0.08) {
-      const noise = (Math.random() * 2 - 1) * Math.exp(-t * 35);
-      s += noise * 0.50;
-    }
-    // Mirror slap low thud (140Hz falling to 35Hz)
-    if (t < 0.12) {
-      const punchFreq = 140 - (t / 0.12) * 105;
-      const punch = Math.sin(2 * Math.PI * punchFreq * t) * Math.exp(-t * 22);
-      s += punch * 0.55;
-    }
-    // Second curtain close snap at 0.06s
-    if (t >= 0.06 && t < 0.16) {
-      const dt = t - 0.06;
-      const click = Math.sin(2 * Math.PI * 580 * dt) * Math.exp(-dt * 38);
-      s += click * 0.40;
-    }
-    samples[i] = s;
-  }
-  return encodeWAV(samples, SAMPLE_RATE);
-}
-
-// 4. Photobooth mechanical printer sliding & motor sound (3.0s)
+// 3. Photobooth mechanical printer sliding & motor sound (3.0s)
 function buildPrintingSoundWav() {
   const duration = 3.0;
   const samples = new Float32Array(Math.floor(SAMPLE_RATE * duration));
@@ -123,7 +95,7 @@ function buildPrintingSoundWav() {
   return encodeWAV(samples, SAMPLE_RATE);
 }
 
-// 5. Completion chime (paper cutter snap + F#5 -> B5 harmonic chime)
+// 4. Completion chime (paper cutter snap + F#5 -> B5 harmonic chime)
 function buildPrintCompleteWav() {
   const duration = 0.95;
   const samples = new Float32Array(Math.floor(SAMPLE_RATE * duration));
@@ -158,7 +130,7 @@ function getSoundDataUrls() {
     SOUND_DATA_URLS = {
       beep: buildCountdownBeepWav(),
       cheese: buildCheeseCueWav(),
-      shutter: buildShutterWav(),
+      shutter: SHUTTER_SOUND_URI,
       printing: buildPrintingSoundWav(),
       printComplete: buildPrintCompleteWav(),
     };

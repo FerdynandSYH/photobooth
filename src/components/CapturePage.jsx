@@ -87,6 +87,7 @@ export default function CapturePage({
               isMuted={audio.isMuted}
               onToggleMute={audio.toggleMute}
               onStartSession={onStartSession}
+              onRetakeSlot={onRetakeSlot}
               isSessionRunning={isSessionRunning}
               photos={photos}
               photoCount={currentLayout.photoCount}
