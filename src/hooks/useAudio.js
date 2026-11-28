@@ -177,46 +177,66 @@ function silentUnlockAudioContext() {
   } catch (e) {}
 }
 
+// Dedicated, reusable audio element pool
+let soundPool = null;
+let beepToggle = false;
+
+function getSoundPool() {
+  if (typeof window === 'undefined') return null;
+  if (!soundPool) {
+    const sounds = getSoundDataUrls();
+    try {
+      soundPool = {
+        beepA: new Audio(sounds.beep),
+        beepB: new Audio(sounds.beep),
+        cheese: new Audio(sounds.cheese),
+        shutter: new Audio(sounds.shutter),
+        printing: new Audio(sounds.printing),
+        printComplete: new Audio(sounds.printComplete),
+      };
+      Object.values(soundPool).forEach(audio => {
+        audio.preload = 'auto';
+      });
+    } catch (e) {
+      console.warn('Audio pool initialization failed:', e);
+    }
+  }
+  return soundPool;
+}
+
 export function useAudio() {
   const [isMuted, setIsMuted] = useState(false);
-  const currentPrintingAudioRef = useRef(null);
+  const isMutedRef = useRef(isMuted);
 
-  // Universal sound player: Plays via HTML5 Audio with fallback to Web Audio API
-  const playSoundData = useCallback((dataUrl, volume = 0.8) => {
-    if (isMuted) return null;
+  // Keep isMutedRef synchronously in sync with isMuted
+  isMutedRef.current = isMuted;
+
+  // Non-blocking, instant sound player
+  const playSound = useCallback((audioEl, volume = 0.85) => {
+    if (!audioEl || isMutedRef.current) return;
     try {
-      const audioEl = new Audio(dataUrl);
       audioEl.volume = Math.max(0, Math.min(1, volume));
-
-      // Automatic garbage collection on audio completion
-      audioEl.onended = () => {
-        audioEl.src = '';
-        try { audioEl.remove(); } catch (err) {}
-      };
-
+      audioEl.currentTime = 0;
       const playPromise = audioEl.play();
       if (playPromise && typeof playPromise.catch === 'function') {
         playPromise.catch(() => {
-          // If browser blocked HTML5 Audio, attempt Web Audio API resume fallback
+          // If browser requires AudioContext resume
           try {
             const ctx = getSharedAudioContext();
             if (ctx && ctx.state === 'suspended') ctx.resume();
           } catch (err) {}
         });
       }
-      return audioEl;
-    } catch (e) {
-      return null;
-    }
-  }, [isMuted]);
+    } catch (e) {}
+  }, []);
 
   // Explicit user gesture unlocker (always 100% silent)
   const unlockAudio = useCallback(() => {
     silentUnlockAudioContext();
+    getSoundPool();
   }, []);
 
   // Global one-time listener to silently unlock AudioContext upon very first user touch or click.
-  // CRITICAL: Uses { once: true } and immediate self-removal so it NEVER runs on subsequent touches!
   useEffect(() => {
     let unlocked = false;
 
@@ -224,6 +244,7 @@ export function useAudio() {
       if (unlocked) return;
       unlocked = true;
       silentUnlockAudioContext();
+      getSoundPool();
       cleanUpListeners();
     };
 
@@ -246,65 +267,77 @@ export function useAudio() {
     };
   }, []);
 
-  // Countdown timer beep (normal beep vs CHEESE final cue)
-  // ONLY triggered when runCountdown in App.jsx actively counts down
+  // Countdown timer beep (alternates beepA & beepB to prevent cut-off on rapid ticks)
   const playBeep = useCallback((isFinal = false) => {
-    if (isMuted) return;
-    const sounds = getSoundDataUrls();
-    playSoundData(isFinal ? sounds.cheese : sounds.beep, isFinal ? 0.95 : 0.85);
-  }, [isMuted, playSoundData]);
+    if (isMutedRef.current) return;
+    const pool = getSoundPool();
+    if (!pool) return;
+    if (isFinal) {
+      playSound(pool.cheese, 0.95);
+    } else {
+      beepToggle = !beepToggle;
+      playSound(beepToggle ? pool.beepA : pool.beepB, 0.85);
+    }
+  }, [playSound]);
 
   // Authentic mechanical photobooth SLR shutter sound
   const playShutter = useCallback(() => {
-    if (isMuted) return;
-    const sounds = getSoundDataUrls();
-    playSoundData(sounds.shutter, 0.95);
-  }, [isMuted, playSoundData]);
+    if (isMutedRef.current) return;
+    const pool = getSoundPool();
+    if (!pool) return;
+    playSound(pool.shutter, 0.95);
+  }, [playSound]);
 
   // Photobooth mechanical printer roller & paper sliding sound while photo emerges
   const playPrintingSound = useCallback(() => {
-    if (isMuted) return;
-    const sounds = getSoundDataUrls();
-    if (currentPrintingAudioRef.current) {
-      try {
-        currentPrintingAudioRef.current.pause();
-        currentPrintingAudioRef.current.src = '';
-      } catch (e) {}
-      currentPrintingAudioRef.current = null;
-    }
-    const audioEl = playSoundData(sounds.printing, 0.70);
-    currentPrintingAudioRef.current = audioEl;
-  }, [isMuted, playSoundData]);
+    if (isMutedRef.current) return;
+    const pool = getSoundPool();
+    if (!pool) return;
+    playSound(pool.printing, 0.70);
+  }, [playSound]);
 
   // Photobooth paper release cutter snap & pleasant completion chime when photo fully emerges
   const playPrintComplete = useCallback(() => {
-    if (isMuted) return;
-    if (currentPrintingAudioRef.current) {
-      try {
-        currentPrintingAudioRef.current.pause();
-        currentPrintingAudioRef.current.src = '';
-      } catch (e) {}
-      currentPrintingAudioRef.current = null;
-    }
-    const sounds = getSoundDataUrls();
-    playSoundData(sounds.printComplete, 0.90);
-  }, [isMuted, playSoundData]);
+    if (isMutedRef.current) return;
+    const pool = getSoundPool();
+    if (!pool) return;
+    try {
+      pool.printing.pause();
+    } catch (e) {}
+    playSound(pool.printComplete, 0.90);
+  }, [playSound]);
 
-  // Clean up any active printing audio when hook unmounts
+  // Clean up on unmount
   useEffect(() => {
     return () => {
-      if (currentPrintingAudioRef.current) {
-        try {
-          currentPrintingAudioRef.current.pause();
-          currentPrintingAudioRef.current.src = '';
-        } catch (e) {}
-        currentPrintingAudioRef.current = null;
+      if (soundPool) {
+        Object.values(soundPool).forEach(audio => {
+          try {
+            audio.pause();
+          } catch (e) {}
+        });
       }
     };
   }, []);
 
+  // Instant non-blocking mute / unmute toggle
   const toggleMute = useCallback(() => {
-    setIsMuted(prev => !prev);
+    setIsMuted(prev => {
+      const next = !prev;
+      isMutedRef.current = next;
+      if (next) {
+        // Instantly pause currently playing sounds WITHOUT destroying or clearing sources
+        const pool = getSoundPool();
+        if (pool) {
+          Object.values(pool).forEach(audio => {
+            try {
+              audio.pause();
+            } catch (e) {}
+          });
+        }
+      }
+      return next;
+    });
   }, []);
 
   return useMemo(() => ({

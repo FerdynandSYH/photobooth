@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useCamera } from './hooks/useCamera';
 import { useAudio } from './hooks/useAudio';
 import { LAYOUTS, DEFAULT_LAYOUT } from './constants/layouts';
@@ -37,6 +37,8 @@ export default function App() {
   // Camera & Audio Hooks
   const camera = useCamera();
   const audio = useAudio();
+  const audioRef = useRef(audio);
+  audioRef.current = audio;
 
   // Konfigurasi
   const [selectedLayoutId, setSelectedLayoutId] = useState(DEFAULT_LAYOUT);
@@ -138,35 +140,30 @@ export default function App() {
       } else {
         let timeLeft = seconds;
         setCountdown(timeLeft);
-        audio.playBeep(false);
+        audioRef.current.playBeep(false);
 
         const interval = setInterval(() => {
           timeLeft--;
           if (timeLeft > 0) {
             setCountdown(timeLeft);
-            audio.playBeep(false);
+            audioRef.current.playBeep(timeLeft === 1);
           } else {
             clearInterval(interval);
-            // Tampilkan aba-aba "CHEESE!" tepat sebelum kamera menjepret foto
-            setCountdown('CHEESE!');
-            audio.playBeep(true);
-            setTimeout(() => {
-              setCountdown(null);
-              resolve();
-            }, 750);
+            setCountdown(null);
+            resolve();
           }
         }, 1000);
       }
     });
-  }, [audio]);
+  }, []);
 
   // Jepret satu frame foto alami (filter diaplikasikan di tahap editing)
   const snapPhoto = useCallback(() => {
     setIsFlashing(true);
-    audio.playShutter();
-    setTimeout(() => setIsFlashing(false), 300);
+    audioRef.current.playShutter();
+    setTimeout(() => setIsFlashing(false), 350);
     return camera.captureFrame(null);
-  }, [camera, audio]);
+  }, [camera]);
 
   // Jalankan sesi foto: Tiap klik tombol mengambil 1 foto untuk slot berikutnya yang masih kosong
   // (Dengan hitung mundur jika timer aktif, atau jepret langsung jika timer Off).

@@ -59,6 +59,9 @@ html, body {
 
 @keyframes flashAnimation {
   0% {
+    opacity: 1;
+  }
+  15% {
     opacity: 0.95;
   }
   100% {

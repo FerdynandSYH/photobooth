@@ -131,41 +131,50 @@ export default function CameraControls({
             onStartSession();
           }}
           disabled={isSessionRunning}
-          className={`w-full min-h-[52px] sm:min-h-[56px] py-3.5 px-6 rounded-2xl font-bold transition flex items-center justify-center gap-2.5 text-sm sm:text-base ${getActionButtonClass()}`}
+          className={`w-full min-h-[52px] sm:min-h-[56px] py-3.5 px-6 rounded-2xl font-bold transition flex items-center justify-between gap-2.5 text-sm sm:text-base ${getActionButtonClass()}`}
         >
           {isSessionRunning ? (
-            <span className="flex items-center gap-2">
-              <span className="w-4 h-4 border-2 border-stone-400 border-t-stone-800 rounded-full animate-spin"></span>
-              <span>
-                {timerSeconds === 0
-                  ? `Menjepret Slot #${nextSlotNumber}...`
-                  : `Hitung Mundur Slot #${nextSlotNumber}...`}
+            <>
+              <div className="flex items-center gap-2.5">
+                <span className="w-4 h-4 border-2 border-stone-400 border-t-stone-800 rounded-full animate-spin"></span>
+                <span>
+                  {timerSeconds === 0 ? 'Menjepret Foto...' : 'Hitung Mundur...'}
+                </span>
+              </div>
+              <span className="bg-stone-300 text-stone-700 text-xs px-2.5 py-1 rounded-full font-semibold font-mono">
+                Slot {nextSlotNumber}/{photoCount}
               </span>
-            </span>
+            </>
           ) : isRetakingSingle ? (
             <>
-              <Camera className="w-5 h-5 text-white" />
-              <span>Ambil Ulang Foto (Slot #{nextSlotNumber})</span>
-              <span className="bg-amber-700 text-amber-100 text-xs px-2.5 py-1 rounded-full font-semibold">
-                Ulang #{nextSlotNumber}
+              <div className="flex items-center gap-2.5">
+                <Camera className="w-5 h-5 text-white" />
+                <span>Ambil Ulang Foto</span>
+              </div>
+              <span className="bg-amber-700 text-amber-100 text-xs px-2.5 py-1 rounded-full font-semibold font-mono">
+                Slot {nextSlotNumber}
               </span>
             </>
           ) : allSlotsFilled ? (
             <>
-              <RotateCcw className="w-4 h-4 text-stone-700" />
-              <span className="font-bold text-stone-800">Pilih Slot Foto yang Ingin Diulang</span>
-              <span className="bg-stone-200 text-stone-700 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-stone-300">
+              <div className="flex items-center gap-2.5">
+                <RotateCcw className="w-4 h-4 text-stone-700" />
+                <span className="font-bold text-stone-800">Pilih Slot untuk Diulang</span>
+              </div>
+              <span className="bg-stone-200 text-stone-700 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-stone-300 font-mono">
                 Pilih Slot
               </span>
             </>
           ) : (
             <>
-              <Camera className="w-5 h-5 text-stone-200" />
-              <span>Ambil Foto (Slot #${nextSlotNumber} dari ${photoCount})</span>
-              <span className="bg-stone-800 text-stone-200 text-xs px-2.5 py-1 rounded-full font-semibold border border-stone-700">
+              <div className="flex items-center gap-2.5">
+                <Camera className="w-5 h-5 text-stone-200" />
+                <span>Ambil Foto</span>
+              </div>
+              <span className="bg-stone-800 text-stone-200 text-xs px-2.5 py-1 rounded-full font-semibold border border-stone-700 font-mono">
                 {timerSeconds > 0
-                  ? `${timerSeconds}s • Slot ${filledCount}/${photoCount}`
-                  : `Slot ${filledCount}/${photoCount}`}
+                  ? `${timerSeconds}s • Slot ${nextSlotNumber}/${photoCount}`
+                  : `Slot ${nextSlotNumber}/${photoCount}`}
               </span>
             </>
           )}

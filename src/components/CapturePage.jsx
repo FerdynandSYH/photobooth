@@ -27,7 +27,11 @@ export default function CapturePage({
   onBackToHome,
 }) {
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-4 pb-8 sm:pb-10">
+    <div className="w-full max-w-5xl mx-auto space-y-4 pb-8 sm:pb-10 relative">
+      {/* Full-Screen Camera Flash Strobe */}
+      {isFlashing && (
+        <div className="fixed inset-0 bg-white pointer-events-none z-[100] animate-flash" />
+      )}
       
       {/* Top Navigation Bar: Back to Grid / Home & Step Info */}
       <div className="flex items-center justify-between pb-1">
